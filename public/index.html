@@ -102,7 +102,97 @@ ui.backMenu.onclick=()=>location.reload();
 ui.fire.addEventListener('pointerdown',e=>{e.preventDefault();shoot()});ui.run.addEventListener('pointerdown',()=>mobile.sprint=true);ui.run.addEventListener('pointerup',()=>mobile.sprint=false);ui.run.addEventListener('pointercancel',()=>mobile.sprint=false);ui.full.addEventListener('pointerdown',()=>document.documentElement.requestFullscreen?.().catch(()=>{}));
 ui.joy.addEventListener('pointerdown',e=>{mobile.joyId=e.pointerId;ui.joy.setPointerCapture?.(e.pointerId);updateJoy(e)});ui.joy.addEventListener('pointermove',e=>{if(e.pointerId===mobile.joyId)updateJoy(e)});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>ui.joy.addEventListener(ev,()=>{mobile.joyId=null;mobile.x=mobile.y=0;ui.knob.style.transform='translate(-50%,-50%)'}));function updateJoy(e){const r=ui.joy.getBoundingClientRect(),dx=e.clientX-r.left-r.width/2,dy=e.clientY-r.top-r.height/2,max=r.width*.31,l=Math.hypot(dx,dy)||1,s=Math.min(1,l/max),x=dx/l*s,y=dy/l*s;mobile.x=x;mobile.y=-y;ui.knob.style.transform=`translate(calc(-50% + ${x*max}px),calc(-50% + ${y*max}px))`}
 ui.look.addEventListener('pointerdown',e=>{mobile.lookId=e.pointerId;mobile.lastX=e.clientX;mobile.lastY=e.clientY;ui.look.setPointerCapture?.(e.pointerId)});ui.look.addEventListener('pointermove',e=>{if(e.pointerId!==mobile.lookId||!started)return;const dx=e.clientX-mobile.lastX,dy=e.clientY-mobile.lastY;mobile.lastX=e.clientX;mobile.lastY=e.clientY;camera.rotation.y+=dx/700;camera.rotation.x=Math.max(-1.35,Math.min(1.35,camera.rotation.x+dy/700))});['pointerup','pointercancel'].forEach(ev=>ui.look.addEventListener(ev,()=>mobile.lookId=null));
-socket.on('connect',()=>{myId=socket.id});socket.on('room:created',r=>{room=r;showLobby()});socket.on('room:joined',r=>{room=r;showLobby()});socket.on('room:update',r=>{room=r;if(!started)showLobby();});socket.on('room:error',m=>{ui.menuHint.textContent=m;ui.lobbyHint.textContent=m;toast(m,1600)});socket.on('game:start',s=>{sync(s);startLocal()});socket.on('state',s=>{if(started)sync(s);});socket.on('shot:fx',fx=>tracer(fx.origin,fx.end,fx.shooterId===myId));socket.on('bot:shot',fx=>tracer(fx.origin,fx.end,false));socket.on('player:damage',d=>{if(d.id===myId){localHP=d.hp;ui.hp.textContent=Math.ceil(d.hp);ui.hpfill.style.width=d.hp+'%';navigator.vibrate?.(15)}});socket.on('player:heal',d=>{if(d.id===myId){localHP=d.hp;ui.hp.textContent=Math.ceil(d.hp);ui.hpfill.style.width=d.hp+'%';toast('+5 HP',500)}});socket.on('player:killed',d=>{if(d.victimId===myId){toast('کشته شدی — Respawn...',1300)}if(d.killerId===myId)toast('+1 KILL',700)});socket.on('bot:killed',d=>{if(d.killerId===myId)toast('+1 KILL · ZOMBIE',700)});socket.on('game:over',d=>{started=false;ui.hud.classList.add('hidden');ui.result.classList.remove('hidden');ui.winner.textContent=d.winner?`🏆 برنده: ${d.winner.name} — ${d.winner.kills} KILL`:'برنده‌ای وجود ندارد';ui.rank.innerHTML=d.players.map((p,i)=>`<div>${i+1}. ${escapeHtml(p.name)} — ${p.kills} KILL</div>`).join('')});
+socket.on('connect',()=>{
+  myId=socket.id;
+});
+
+socket.on('roomCreated',(data)=>{
+  room={
+    code:data.code,
+    hostId:myId,
+    players:[],
+    bots:[],
+    gameStarted:false
+  };
+  showLobby();
+});
+
+socket.on('roomJoined',(data)=>{
+  room={
+    code:data.code,
+    hostId:data.hostId,
+    players:data.players||[],
+    bots:[],
+    gameStarted:false
+  };
+  showLobby();
+});
+
+socket.on('roomState',(data)=>{
+  room=data;
+
+  if(room.gameStarted && !started){
+    startLocal();
+  }else if(!started){
+    showLobby();
+  }
+
+  if(started){
+    sync(data);
+  }
+});
+
+socket.on('gameStarted',()=>{
+  startLocal();
+});
+
+socket.on('shot',(fx)=>{
+  tracer(fx.start,fx.end,fx.shooterId===myId);
+});
+
+socket.on('botShot',(fx)=>{
+  tracer(fx.start,fx.end,false);
+});
+
+socket.on('playerHit',(d)=>{
+  if(d.playerId===myId){
+    localHP=d.hp;
+    ui.hp.textContent=Math.ceil(d.hp);
+    ui.hpfill.style.width=d.hp+'%';
+  }
+});
+
+socket.on('playerKilled',(d)=>{
+  if(d.victimId===myId){
+    toast('کشته شدی — Respawn...',1300);
+  }
+
+  if(d.killerId===myId){
+    toast('+1 KILL',700);
+  }
+});
+
+socket.on('botKilled',(d)=>{
+  if(d.killerId===myId){
+    toast('+1 KILL · ZOMBIE',700);
+  }
+});
+
+socket.on('gameOver',(d)=>{
+  started=false;
+  ui.hud.classList.add('hidden');
+  ui.result.classList.remove('hidden');
+
+  ui.winner.textContent=d.winner
+    ? `🏆 برنده: ${d.winner.name} — ${d.winner.kills} KILL`
+    : 'برنده‌ای وجود ندارد';
+});
+
+socket.on('roomError',(message)=>{
+  ui.menuHint.textContent=message;
+  ui.lobbyHint.textContent=message;
+  toast(message,1600);
+});
 function tracer(a,b,own){const s=new BABYLON.Vector3(a.x,a.y,a.z),e=new BABYLON.Vector3(b.x,b.y,b.z);const line=BABYLON.MeshBuilder.CreateLines('tracer',{points:[s,e]},scene);line.color=new BABYLON.Color3(1,.04,.02);line.isPickable=false;setTimeout(()=>line.dispose(),100)}
 engine.runRenderLoop(()=>{try{scene.render();if(started){const left=Math.max(0,gameEnd-Date.now());ui.timer.textContent=fmt(left/1000);if(left<=0)started=false}}catch(e){console.error(e)}});window.addEventListener('resize',()=>engine.resize());
 })();
