@@ -5,53 +5,297 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Battle|701</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#071018;color:#fff;font-family:Tahoma,Arial,sans-serif;user-select:none}button,input{font:inherit}button{border:0;cursor:pointer;font-weight:900;border-radius:14px;padding:13px 16px;background:linear-gradient(135deg,#54c8ff,#66e69a);color:#06121b;box-shadow:0 8px 25px #0006}button.secondary{background:#ffffff12;color:#fff;border:1px solid #ffffff1f;box-shadow:none}.hidden{display:none!important}#renderCanvas{position:fixed;inset:0;width:100%;height:100%;outline:0;touch-action:none}#menu,#roomUI{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 30%,#29445b,#05090f 72%)}.panel{width:min(470px,92vw);padding:28px;border:1px solid #ffffff20;border-radius:25px;background:#091521e8;backdrop-filter:blur(18px);box-shadow:0 25px 90px #0009;text-align:center}.title{font-size:42px;margin:0 0 4px;font-weight:1000;letter-spacing:.05em}.sub{color:#9fb3c6;margin:0 0 20px}.field{text-align:right;margin:10px 0}.field label{font-size:12px;color:#9fb3c6}input{width:100%;margin-top:6px;padding:14px;border-radius:13px;border:1px solid #ffffff18;background:#ffffff0d;color:#fff;outline:none;text-align:center}input:focus{border-color:#54c8ff99}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.joinArea{margin-top:8px}.hint{min-height:20px;color:#ffcf6a;font-size:12px}.roomCode{font-size:42px;letter-spacing:.22em;color:#ffd45b;font-weight:1000;margin:10px}.members{display:grid;gap:7px;max-height:260px;overflow:auto;margin:15px 0;text-align:right}.member{padding:10px 12px;border-radius:11px;background:#ffffff0a;border:1px solid #ffffff0c}.member.host{outline:1px solid #ffd45b;color:#ffe28b}.member b{float:left}.wide{grid-column:1/-1}
-#hud{position:fixed;inset:0;z-index:15;pointer-events:none}.top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;direction:ltr}.hudBox{direction:rtl;padding:9px 12px;border-radius:14px;background:#061522d9;border:1px solid #ffffff18;backdrop-filter:blur(10px);min-width:125px}.stats{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;font-weight:900}.hpbar{height:8px;width:150px;background:#ffffff16;border-radius:99px;overflow:hidden;margin-top:5px}.hpfill{height:100%;width:100%;background:linear-gradient(90deg,#ff4e60,#ffd35b,#64e692)}#timer{font-size:21px;font-weight:1000;text-align:center;min-width:100px}#cross{position:absolute;left:50%;top:50%;width:20px;height:20px;transform:translate(-50%,-50%);border:2px solid #fff;border-radius:50%;filter:drop-shadow(0 0 5px #000)}#cross:after{content:"";position:absolute;width:4px;height:4px;border-radius:50%;background:#fff;left:50%;top:50%;transform:translate(-50%,-50%)}#toast{position:absolute;left:50%;bottom:18%;transform:translateX(-50%);padding:10px 17px;border-radius:99px;background:#061522ed;border:1px solid #ffffff18;opacity:0;transition:.18s;font-weight:900}#toast.show{opacity:1}.gun{position:absolute;left:50%;bottom:2%;transform:translateX(-50%);width:190px;height:105px;pointer-events:none;filter:drop-shadow(0 8px 10px #000)}.gunBody{position:absolute;left:28px;top:30px;width:125px;height:38px;border-radius:7px;background:linear-gradient(145deg,#4b5561,#11161c);transform:skewX(-8deg)}.gunBarrel{position:absolute;left:136px;top:38px;width:54px;height:11px;background:#0d1115;border-radius:5px}.gunGrip{position:absolute;left:65px;top:58px;width:27px;height:48px;background:#242a31;transform:rotate(14deg);border-radius:4px}.muzzle{position:absolute;left:181px;top:35px;width:8px;height:18px;border-radius:50%;background:#ffb62d;box-shadow:0 0 16px #ff5b24;opacity:0}.mobile{display:none;position:fixed;inset:0;z-index:25;pointer-events:none}.joy{position:absolute;left:20px;bottom:22px;width:145px;height:145px;border-radius:50%;background:#071a2c99;border:2px solid #ffffff20;pointer-events:auto;touch-action:none}.knob{position:absolute;left:50%;top:50%;width:62px;height:62px;transform:translate(-50%,-50%);border-radius:50%;background:#61d8ff55;border:1px solid #ffffff35}.mBtn{position:absolute;width:76px;height:50px;padding:0;color:#fff;background:#071a2de8;border:1px solid #ffffff25;box-shadow:none;pointer-events:auto;touch-action:none}.fire{right:22px;bottom:25px;width:94px;height:94px;border-radius:50%;background:#bb3349e8;font-size:16px}.reload{right:128px;bottom:108px}.run{left:180px;bottom:34px}.full{right:18px;top:18px;width:50px;height:44px;padding:0}.look{position:absolute;right:0;top:0;width:58%;height:100%;pointer-events:auto;touch-action:none}.dead,.winner{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;text-align:center;background:#0009}.dead.show,.winner.show{display:flex}.big{font-size:45px;font-weight:1000}.winner .big{color:#ffd45b}.small{color:#ccd7e0;margin-top:10px}
-@media(pointer:coarse) and (orientation:landscape){.mobile{display:block}}@media(pointer:coarse) and (orientation:portrait){#hud,.mobile{display:none!important}}@media(max-width:600px){.title{font-size:46px}.grid{grid-template-columns:1fr}.panel{padding:22px}.hudBox{padding:7px 9px}.stats{font-size:11px}}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080b10;color:#fff;font-family:Tahoma,Arial,sans-serif;touch-action:none}
+#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at center,#253448,#07090d 70%);z-index:50}
+.panel{width:min(430px,92vw);padding:28px;border:1px solid #50657b;border-radius:24px;background:rgba(10,15,23,.88);box-shadow:0 20px 80px #0008;text-align:center}
+h1{margin:0 0 8px;font-size:30px}.sub{color:#aebdca;margin-bottom:22px}
+input,button{width:100%;height:50px;border:0;border-radius:14px;font:inherit}input{padding:0 15px;margin:7px 0;background:#eef3f7;color:#101820}
+button{margin-top:9px;background:#2e9bff;color:#fff;font-weight:bold;cursor:pointer;box-shadow:0 6px 18px #0005}button:active{transform:scale(.98)}button.secondary{background:#263342}.hidden{display:none!important}
+#roomUI{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:linear-gradient(#101923,#080b10)}
+#roomBox{width:min(600px,94vw);background:#111a24dd;border:1px solid #42586d;border-radius:22px;padding:22px}
+#roomCode{font-size:34px;letter-spacing:7px;color:#59c7ff;font-weight:bold;margin:8px}
+#members{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:15px 0;max-height:270px;overflow:auto}
+.member{padding:10px;border-radius:10px;background:#202d3a}.host{outline:2px solid #ffc44d}
+#renderCanvas{width:100%;height:100%;display:block;outline:none}
+#hud{position:fixed;inset:0;z-index:10;pointer-events:none;display:none}
+#top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;direction:ltr}
+.badge{background:#071018cc;border:1px solid #496071;border-radius:12px;padding:8px 12px;direction:rtl}
+#cross{position:absolute;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);border:1px solid #fff;border-radius:50%}
+#cross:after{content:"";position:absolute;width:4px;height:4px;background:#fff;border-radius:50%;left:6px;top:6px}
+#gun{position:absolute;left:50%;bottom:4%;width:170px;height:95px;transform:translateX(-50%);background:linear-gradient(145deg,#343a42,#11161b);clip-path:polygon(15% 35%,100% 25%,100% 55%,70% 62%,58% 100%,35% 100%,38% 60%,15% 55%);filter:drop-shadow(0 8px 10px #000);opacity:.95}
+#flash{position:absolute;left:50%;top:47%;width:7px;height:80px;background:#ff3030;transform:translate(-50%,-50%);opacity:0;filter:blur(.4px)}
+#stats{position:absolute;bottom:14px;left:14px;direction:rtl}
+#hpbar{width:210px;height:18px;background:#241116;border-radius:10px;overflow:hidden;border:1px solid #71333d}
+#hp{height:100%;width:100%;background:#37d477}
+#killText{margin-top:5px}
+#timer{font-size:20px;font-weight:bold}
+#roomText{font-size:14px}
+#dead,#winner{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:#0009;text-align:center}
+.big{font-size:42px;font-weight:bold}.small{color:#ccd6de;margin-top:10px}
+#winner .big{color:#ffd34f}
+#mobile{position:fixed;inset:0;z-index:15;display:none;pointer-events:none}
+#stick{position:absolute;left:25px;bottom:30px;width:130px;height:130px;border-radius:50%;background:#ffffff18;border:2px solid #ffffff35;pointer-events:auto}
+#knob{position:absolute;width:58px;height:58px;border-radius:50%;background:#ffffff55;left:34px;top:34px}
+#look{position:absolute;right:0;top:0;width:55%;height:72%;pointer-events:auto}
+#fire{position:absolute;right:25px;bottom:42px;width:88px;height:88px;border-radius:50%;background:#e3313b99;border:2px solid #fff6;pointer-events:auto}
+#mobileHint{position:absolute;right:25px;bottom:140px;color:#fff8;font-size:12px}
+@media (pointer:coarse){#mobile{display:block}}
+@media (max-width:600px){.panel{padding:20px}h1{font-size:25px}#gun{width:135px;height:78px}}
 </style>
 </head>
 <body>
+<div id="menu">
+  <div class="panel">
+    <h1>Battle701</h1>
+    <div class="sub">بتل‌رویال بر و بچ 701 آنلاین</div>
+    <input id="name" maxlength="20" placeholder="اسمت را برای دختر نیمار وارد کن">
+    <button id="create">ساخت اتاق بازی</button>
+    <button id="joinBtn" class="secondary">ورود به اتاق دیگران برای بازی</button>
+    <div id="joinArea" class="hidden">
+      <input id="roomCodeInput" maxlength="5" placeholder="کد اتاقش">
+      <button id="join">ورود به اتاقش</button>
+    </div>
+    <div id="msg"></div>
+  </div>
+</div>
+
+<div id="roomUI" class="hidden">
+ <div id="roomBox">
+   <div>کد اتاق</div>
+   <div id="roomCode">-----</div>
+   <div id="roomInfo">این کد را برای دوستان و اشنایان و نزدیکانت بفرست</div>
+   <div id="members"></div>
+   <button id="start" class="hidden">شروع بازی</button>
+   <button id="leave" class="secondary">خروج از اتاق</button>
+ </div>
+</div>
+
 <canvas id="renderCanvas"></canvas>
-<div id="menu"><div class="panel"><h1 class="title">battle701</h1><div class="field"><input id="name" maxlength="18" placeholder="اسمتو برای دختر نیمار بتایپ"></div><div class="grid"><button id="create">ساخت اتاق بازی</button><button id="showJoin" class="secondary">ورود به اتاق دیگران برای بازی</button></div><div id="joinArea" class="joinArea hidden"><div class="field"><label>کد اتاقش</label><input id="roomCodeInput" maxlength="5" placeholder="ABCDE" style="letter-spacing:.3em;text-transform:uppercase"></div><button id="join" class="wide">ورود به اتاقش</button></div><p id="msg" class="hint"></p></div></div>
-<div id="roomUI" class="hidden"><div class="panel"><div>کد اتاق</div><div id="roomCode" class="roomCode">-----</div><div class="sub">این کد را برای دوستت بفرست</div><div id="members" class="members"></div><div class="grid"><button id="start">شروع بازی</button><button id="leave" class="secondary">خروج</button></div><p id="roomMsg" class="hint"></p></div></div>
-<div id="hud" class="hidden"><div class="top"><div class="hudBox"><div>نام: <b id="playerName">---</b></div><div>HP: <b id="hpText">100</b> / 100</div><div class="hpbar"><div id="hpFill" class="hpfill"></div></div></div><div class="hudBox stats"><span>کشتار: <b id="kills">0</b></span><span>بازیکن: <b id="count">0</b></span></div><div class="hudBox" id="timer">10:00</div><button id="desktopFull" class="mBtn full" style="pointer-events:auto;position:relative;right:auto;top:auto">⛶</button></div><div id="cross"></div><div class="gun"><div class="gunBody"></div><div class="gunBarrel"></div><div class="gunGrip"></div><div id="muzzle" class="muzzle"></div></div><div id="toast"></div></div>
-<div id="mobile"><div id="look" class="look"></div><div id="joy" class="joy"><div id="knob" class="knob"></div></div><button id="run" class="mBtn run">بدو</button><button id="reload" class="mBtn reload">RELOAD</button><button id="fire" class="mBtn fire">🔥 FIRE</button><button id="full" class="mBtn full">⛶</button></div>
-<div id="dead" class="dead"><div><div class="big">💀 کشته شدی</div><div class="small">چند لحظه دیگر با دختر نیمار برمی‌گردی...</div></div></div>
-<div id="winner" class="winner"><div><div class="big" id="winnerText"></div><div class="small">نتیجه تا چند ثانیه نمایش داده می‌شود.</div></div></div>
-<script src="/socket.io/socket.io.js"></script><script src="https://cdn.babylonjs.com/babylon.js"></script>
+<div id="hud">
+ <div id="top">
+   <div class="badge"><span id="roomText"></span></div>
+   <div class="badge">⏱ <span id="timer">10:00</span></div>
+ </div>
+ <div id="cross"></div><div id="gun"></div><div id="flash"></div>
+ <div id="stats">
+   <div id="hpbar"><div id="hp"></div></div>
+   <div id="killText">❤️ 100 | 🔫 کیل: 0</div>
+ </div>
+</div>
+<div id="mobile">
+ <div id="stick"><div id="knob"></div></div>
+ <div id="look"></div><button id="fire">🔫</button>
+ <div id="mobileHint">چپ: حرکت · راست: نگاه</div>
+</div>
+<div id="dead"><div><div class="big">💀 کشته شدی</div><div class="small">در حال بازگشت به نقشه...</div></div></div>
+<div id="winner"><div><div class="big" id="winnerText"></div><div class="small">بازی دوباره آماده می‌شود...</div></div></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
 <script>
-(()=>{
-'use strict';
-const $=id=>document.getElementById(id);
 const socket=io();
-const canvas=$('renderCanvas');
-const engine=new BABYLON.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:true,antialias:true});
-const scene=new BABYLON.Scene(engine);scene.clearColor=new BABYLON.Color4(.42,.68,.84,1);scene.collisionsEnabled=true;scene.gravity=new BABYLON.Vector3(0,-.32,0);
-let camera,gun,started=false,myId='',room=null,playerName='---',lastMove=0,lastShot=0,toastTimer=0,lookId=null,joyId=null;const keys={};const remote=new Map(),bots=new Map();let joyX=0,joyY=0,sprinting=false;
-const HOUSES=[];for(let x=-80;x<=80;x+=40)for(let z=-80;z<=80;z+=40){if(Math.abs(x)<45&&Math.abs(z)<45)continue;HOUSES.push({x,z,w:18,d:15});}
-const TREES=[[-88,-86,1],[-64,-88,.9],[-40,-88,1.15],[40,-88,1],[64,-86,.9],[88,-88,1.05],[-88,-64,.85],[-70,-60,1],[70,-62,.9],[88,-60,1.05],[-90,-25,1],[-72,-18,.9],[72,-18,1],[90,-25,.9],[-90,25,.95],[-72,18,1],[72,18,.9],[90,28,1.05],[-88,60,1.05],[-70,64,.9],[70,62,1],[88,64,.9],[-88,88,1],[-64,86,.9],[-40,88,1.05],[40,88,1],[64,88,.9],[88,86,1.05],[-30,-86,.8],[30,-86,.85],[-30,86,.85],[30,86,.8]];
-function mat(n,c,em){const m=new BABYLON.StandardMaterial(n,scene);m.diffuseColor=BABYLON.Color3.FromHexString(c);if(em)m.emissiveColor=BABYLON.Color3.FromHexString(em);m.specularColor=new BABYLON.Color3(.12,.12,.12);return m}
-const M={ground:mat('ground','#5d7957'),road:mat('road','#30383b'),house:mat('house','#b28d67'),roof:mat('roof','#70463c'),door:mat('door','#3c2921'),window:mat('window','#5fc7e8','#173f4d'),trunk:mat('trunk','#65452b'),leaf:mat('leaf','#2d6c38'),leaf2:mat('leaf2','#4d8b3c'),player:mat('player','#258cff','#062b52'),other:mat('other','#e34f58','#4b0a10'),bot:mat('bot','#79b94f','#173a0b'),skin:mat('skin','#e8a06f'),gun:mat('gun','#252b32','#080b0e'),black:mat('black','#111418'),label:mat('label','#ffffff','#ffffff')};
-function box(n,x,y,z,w,h,d,m,coll=true){const q=BABYLON.MeshBuilder.CreateBox(n,{width:w,height:h,depth:d},scene);q.position.set(x,y,z);q.material=m;q.checkCollisions=coll;q.isPickable=coll;return q}
-function tree(x,z,s=1){const t=BABYLON.MeshBuilder.CreateCylinder('trunk',{height:5*s,diameter:.9*s,tessellation:12},scene);t.position.set(x,2.5*s,z);t.material=M.trunk;t.checkCollisions=true;const c=BABYLON.MeshBuilder.CreateSphere('crown',{diameter:5*s,segments:10},scene);c.position.set(x,6*s,z);c.material=M.leaf;c.checkCollisions=true;const c2=BABYLON.MeshBuilder.CreateSphere('crown2',{diameter:3.3*s,segments:10},scene);c2.position.set(x+1.1*s,6.2*s,z-.3*s);c2.material=M.leaf2;c2.checkCollisions=true}
-function buildWorld(){const g=BABYLON.MeshBuilder.CreateGround('ground',{width:190,height:190,subdivisions:2},scene);g.material=M.ground;g.checkCollisions=true;box('roadA',0,.025,0,34,.05,190,M.road,false);box('roadB',0,.03,0,190,.05,34,M.road,false);for(const h of HOUSES){box('house',h.x,4,h.z,h.w,8,h.d,M.house);box('roof',h.x,8.5,h.z,h.w+1,1,h.d+1,M.roof,false);box('door',h.x,2.1,h.z-h.d/2-.08,3.1,4.2,.2,M.door,true);for(let i=-1;i<=1;i++)box('window',h.x+i*4.4,2.3,h.z-h.d/2-.1,2.4,1.3,.12,M.window,false)}for(const [x,z,s] of TREES)tree(x,z,s);const hemi=new BABYLON.HemisphericLight('hemi',new BABYLON.Vector3(0,1,0),scene);hemi.intensity=2.5;hemi.groundColor=new BABYLON.Color3(.35,.5,.3);const sun=new BABYLON.DirectionalLight('sun',new BABYLON.Vector3(-.5,-1,-.3),scene);sun.intensity=2.0;sun.position.set(30,60,20);for(let x=-75;x<=75;x+=25)for(let z=-75;z<=75;z+=25){const l=new BABYLON.PointLight('areaLight',new BABYLON.Vector3(x,12,z),scene);l.intensity=.55;l.range=28;l.diffuse=new BABYLON.Color3(1,.92,.75)}}
-function makeLabel(text){const p=BABYLON.MeshBuilder.CreatePlane('name',{width:3.2,height:.55},scene);const tex=new BABYLON.DynamicTexture('txt'+Math.random(),{width:512,height:90},scene,true);tex.hasAlpha=true;const c=tex.getContext();c.clearRect(0,0,512,90);c.font='bold 42px Tahoma';c.textAlign='center';c.fillStyle='#fff';c.fillText(text,256,58);tex.update();const m=new BABYLON.StandardMaterial('lm'+Math.random(),scene);m.diffuseTexture=tex;m.opacityTexture=tex;m.emissiveColor=new BABYLON.Color3(1,1,1);m.backFaceCulling=false;p.material=m;p.billboardMode=BABYLON.Mesh.BILLBOARDMODE_ALL;return p}
-function makeHuman(p,isBot=false){const root=new BABYLON.TransformNode((isBot?'bot_':'player_')+p.id,scene);const material=isBot?M.bot:(p.id===myId?M.player:M.other);const body=BABYLON.MeshBuilder.CreateBox('body',{width:1,height:1.5,depth:.6},scene);body.position.y=1.45;body.material=material;body.parent=root;const head=BABYLON.MeshBuilder.CreateSphere('head',{diameter:.75,segments:12},scene);head.position.y=2.45;head.material=M.skin;head.parent=root;const parts={legs:[],arms:[]};for(const s of [-1,1]){const leg=BABYLON.MeshBuilder.CreateBox('leg',{width:.3,height:1,depth:.35},scene);leg.position.set(s*.25,.5,0);leg.material=M.black;leg.parent=root;parts.legs.push(leg);const arm=BABYLON.MeshBuilder.CreateBox('arm',{width:.25,height:1,depth:.3},scene);arm.position.set(s*.67,1.45,.05);arm.material=material;arm.parent=root;parts.arms.push(arm)}const gunp=BABYLON.MeshBuilder.CreateBox('handgun',{width:.18,height:.18,depth:.75},scene);gunp.position.set(0,1.4,.55);gunp.material=M.gun;gunp.parent=root;const tag=makeLabel(isBot?p.name:p.name);tag.position.y=3.15;tag.parent=root;return {root,legs:parts.legs,arms:parts.arms,phase:Math.random()*6.28,lastX:0,lastZ:0}}
-function makeCamera(){camera=new BABYLON.UniversalCamera('fps',new BABYLON.Vector3(0,2,0),scene);camera.minZ=.05;camera.maxZ=220;camera.fov=BABYLON.Tools.ToRadians(78);camera.checkCollisions=true;camera.applyGravity=true;camera.ellipsoid=new BABYLON.Vector3(.55,.9,.55);camera.ellipsoidOffset=new BABYLON.Vector3(0,-.78,0);camera.detachControl();scene.activeCamera=camera}
-function makeGun(){gun=new BABYLON.TransformNode('gun',scene);gun.parent=camera;gun.position.set(.45,-.4,.9);const body=box('gbody',0,0,0,.48,.3,.9,M.gun,false);body.parent=gun;const barrel=BABYLON.MeshBuilder.CreateCylinder('gbarrel',{diameter:.11,height:1.6,tessellation:12},scene);barrel.rotation.x=Math.PI/2;barrel.position.z=.9;barrel.material=M.black;barrel.parent=gun}
-buildWorld();makeCamera();makeGun();
-function showToast(t,ms=1000){$('toast').textContent=t;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),ms)}
-function fmt(s){s=Math.max(0,Math.floor(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
-function startLocal(state){started=true;room=state;$('menu').classList.add('hidden');$('roomUI').classList.add('hidden');$('hud').classList.remove('hidden');playerName=state.players.find(p=>p.id===myId)?.name||playerName;$('playerName').textContent=playerName;camera.position.set(state.players.find(p=>p.id===myId)?.x||0,2,state.players.find(p=>p.id===myId)?.z||0);camera.rotation.set(0,state.players.find(p=>p.id===myId)?.rot||0,0);camera.attachControl(canvas,true);if(matchMedia('(pointer:coarse)').matches){camera.detachControl();setupMobile();}showToast('آماده‌ای — بزن بریم!',1200)}
-function updateState(s){room=s;$('roomCode').textContent=s.code||'-----';$('count').textContent=s.players.length;$('timer').textContent=fmt(s.timeLeft);const me=s.players.find(p=>p.id===myId);if(me){$('hpText').textContent=Math.max(0,Math.ceil(me.hp));$('hpFill').style.width=Math.max(0,me.hp)+'%';$('kills').textContent=me.kills;if(started&&!me.dead&&performance.now()-lastMove>250){/* server remains authoritative; local camera stays smooth */}}for(const p of s.players){if(p.id===myId)continue;let m=remote.get(p.id);if(!m){m=makeHuman(p);remote.set(p.id,m)}m.root.position.set(p.x,0,p.z);m.root.rotation.y=p.rot||0;m.root.setEnabled(!p.dead);const moving=Math.hypot(p.x-m.lastX,p.z-m.lastZ)>.03;m.lastX=p.x;m.lastZ=p.z;if(moving){m.phase+=.35;m.legs[0].rotation.x=Math.sin(m.phase)*.5;m.legs[1].rotation.x=-Math.sin(m.phase)*.5;m.arms[0].rotation.x=-Math.sin(m.phase)*.25;m.arms[1].rotation.x=Math.sin(m.phase)*.25}}for(const b of s.bots){let m=bots.get(b.id);if(!m){m=makeHuman(b,true);bots.set(b.id,m)}m.root.position.set(b.x,0,b.z);m.root.rotation.y=b.rot||0;m.root.setEnabled(!b.dead);const moving=Math.hypot(b.x-m.lastX,b.z-m.lastZ)>.02;m.lastX=b.x;m.lastZ=b.z;if(moving){m.phase+=.42;m.legs[0].rotation.x=Math.sin(m.phase)*.6;m.legs[1].rotation.x=-Math.sin(m.phase)*.6;m.arms[0].rotation.x=-Math.sin(m.phase)*.35;m.arms[1].rotation.x=Math.sin(m.phase)*.35}}}
-function move(){if(!started||!camera)return;let f=0,r=0;if(keys.KeyW||keys.ArrowUp)f++;if(keys.KeyS||keys.ArrowDown)f--;if(keys.KeyD||keys.ArrowRight)r++;if(keys.KeyA||keys.ArrowLeft)r--;f+=-joyY;r+=joyX;const len=Math.hypot(f,r);if(len>1){f/=len;r/=len}if(!f&&!r)return;const yaw=camera.rotation.y;const fx=Math.sin(yaw),fz=Math.cos(yaw),rx=fz,rz=-fx;const speed=(sprinting?12.5:8.2)*.05;camera.position.x+= (fx*f+rx*r)*speed;camera.position.z+=(fz*f+rz*r)*speed;camera.position.x=Math.max(-94,Math.min(94,camera.position.x));camera.position.z=Math.max(-94,Math.min(94,camera.position.z));const now=performance.now();if(now-lastMove>45){socket.emit('move',{x:camera.position.x,z:camera.position.z,rot:camera.rotation.y,sprint:sprinting});lastMove=now}}
-setInterval(move,50);
-function shoot(){if(!started||performance.now()-lastShot<140)return;lastShot=performance.now();const ray=camera.getForwardRay(120);const hit=scene.pickWithRay(ray,m=>m&&m.isPickable&&!m.metadata?.nameLabel);const end=hit&&hit.hit&&hit.pickedPoint?hit.pickedPoint:ray.origin.add(ray.direction.scale(120));const line=BABYLON.MeshBuilder.CreateLines('laser',{points:[ray.origin,end]},scene);line.color=new BABYLON.Color3(1,.03,.02);setTimeout(()=>line.dispose(),100);$('muzzle').style.opacity='1';setTimeout(()=>$('muzzle').style.opacity='0',70);socket.emit('shoot',{dx:ray.direction.x,dz:ray.direction.z})}
-function fullscreen(){const el=document.documentElement;if(document.fullscreenElement)return document.exitFullscreen?.();(el.requestFullscreen||el.webkitRequestFullscreen)?.call(el).catch?.(()=>{});try{screen.orientation?.lock?.('landscape')}catch(e){}}
-$('create').onclick=()=>{const n=$('name').value.trim();if(!n)return $('msg').textContent='اول اسمت را وارد کن.';socket.emit('createRoom',{name:n})};$('showJoin').onclick=()=>$('joinArea').classList.toggle('hidden');$('join').onclick=()=>{const n=$('name').value.trim(),c=$('roomCodeInput').value.trim().toUpperCase();if(!n)return $('msg').textContent='اول اسمت را وارد کن.';if(!/^[A-Z0-9]{5}$/.test(c))return $('msg').textContent='کد باید دقیقاً ۵ حرف یا عدد باشد.';socket.emit('joinRoom',{name:n,roomCode:c})};$('start').onclick=()=>socket.emit('startGame');$('leave').onclick=()=>socket.emit('leaveRoom');$('desktopFull').onclick=fullscreen;$('full').onclick=fullscreen;
-socket.on('connect',()=>myId=socket.id);socket.on('joined',d=>{room={code:d.code,hostId:myId,started:false,players:[],bots:[],timeLeft:600};$('menu').classList.add('hidden');$('roomUI').classList.remove('hidden');$('roomCode').textContent=d.code});socket.on('errorMessage',m=>{$('msg').textContent=m;$('roomMsg').textContent=m;showToast(m,1600)});socket.on('roomState',s=>{room=s;$('roomCode').textContent=s.code;$('start').classList.toggle('hidden',s.hostId!==myId||s.started);$('members').innerHTML=s.players.map(p=>`<div class="member ${p.id===s.hostId?'host':''}">${p.name}<b>${p.id===s.hostId?'👑':''}</b></div>`).join('');if(!started){}else updateState(s)});socket.on('gameStarted',s=>{updateState(s);startLocal(s)});socket.on('state',updateState);socket.on('shotFx',fx=>{const a=new BABYLON.Vector3(fx.origin.x,fx.origin.y,fx.origin.z),b=new BABYLON.Vector3(fx.end.x,fx.end.y,fx.end.z);const l=BABYLON.MeshBuilder.CreateLines('remoteLaser',{points:[a,b]},scene);l.color=new BABYLON.Color3(1,.03,.02);setTimeout(()=>l.dispose(),100)});socket.on('hit',d=>{if(d.targetId===myId){$('hpText').textContent=Math.ceil(d.hp);$('hpFill').style.width=d.hp+'%'}});socket.on('youDied',()=>{$('dead').classList.add('show');setTimeout(()=>$('dead').classList.remove('show'),1500)});socket.on('killEvent',d=>{if(d.killerId===myId)showToast('+1 کشتار',650)});socket.on('botKilled',d=>{if(d.killerId===myId)showToast('+1 کشتار · زامبی',650)});socket.on('gameOver',d=>{started=false;$('hud').classList.add('hidden');$('winner').classList.add('show');$('winnerText').textContent=d.winner?`🏆 برنده: ${d.winner.name} — ${d.winner.kills} کشتار`:'بازی تمام شد';setTimeout(()=>{$('winner').classList.remove('show');$('roomUI').classList.remove('hidden')},5500);camera.detachControl()});
-window.addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyR')showToast('برای نسخه فعلی خشاب بی‌نهایت است',700)});window.addEventListener('keyup',e=>keys[e.code]=false);canvas.addEventListener('mousedown',e=>{if(started&&e.button===0){if(document.pointerLockElement!==canvas)canvas.requestPointerLock?.();shoot()}});canvas.addEventListener('contextmenu',e=>e.preventDefault());
-function setupMobile(){if(!matchMedia('(pointer:coarse)').matches)return;const j=$('joy'),k=$('knob'),l=$('look');const stop=()=>{joyId=null;joyX=joyY=0;k.style.transform='translate(-50%,-50%)'};j.addEventListener('pointerdown',e=>{joyId=e.pointerId;j.setPointerCapture?.(e.pointerId);updJoy(e);e.preventDefault()},{passive:false});j.addEventListener('pointermove',e=>{if(e.pointerId===joyId){updJoy(e);e.preventDefault()}},{passive:false});j.addEventListener('pointerup',stop);j.addEventListener('pointercancel',stop);function updJoy(e){const r=j.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),max=r.width*.32,d=Math.hypot(dx,dy)||1,s=Math.min(1,d/max),x=dx/d*s,y=dy/d*s;joyX=x;joyY=-y;k.style.transform=`translate(calc(-50% + ${x*max}px),calc(-50% + ${y*max}px))`};l.addEventListener('pointerdown',e=>{lookId=e.pointerId;l.setPointerCapture?.(e.pointerId);lookX=e.clientX;lookY=e.clientY;e.preventDefault()},{passive:false});let lookX=0,lookY=0;l.addEventListener('pointermove',e=>{if(e.pointerId!==lookId||!started)return;const dx=e.clientX-lookX,dy=e.clientY-lookY;lookX=e.clientX;lookY=e.clientY;camera.rotation.y+=dx/700;camera.rotation.x=Math.max(-1.35,Math.min(1.35,camera.rotation.x+dy/700));e.preventDefault()},{passive:false});const endLook=()=>lookId=null;l.addEventListener('pointerup',endLook);l.addEventListener('pointercancel',endLook);$('fire').addEventListener('pointerdown',e=>{shoot();e.preventDefault()},{passive:false});$('run').addEventListener('pointerdown',()=>sprinting=true);$('run').addEventListener('pointerup',()=>sprinting=false);$('run').addEventListener('pointercancel',()=>sprinting=false)}
-engine.runRenderLoop(()=>{scene.render()});window.addEventListener('resize',()=>engine.resize());
-})();
-</script></body></html>
+const $=id=>document.getElementById(id);
+let roomCode="", myId="", isHost=false, started=false, roomData=null;
+let engine,scene,camera,gunRoot,me,players={},bots={},obstacles=[];
+let lastSend=0,lastFire=0,keys={},joy={x:0,y:0},lookTouch=null;
+const WORLD=190;
+
+$("joinBtn").onclick=()=> $("joinArea").classList.toggle("hidden");
+$("create").onclick=()=>{
+ const n=$("name").value.trim(); if(!n) return $("msg").textContent="اول اسمت را وارد کن.";
+ socket.emit("createRoom",{name:n});
+};
+$("join").onclick=()=>{
+ const n=$("name").value.trim(), c=$("roomCodeInput").value.trim().toUpperCase();
+ if(!n||c.length!==5) return $("msg").textContent="نام و کد اتاق را کامل وارد کن.";
+ socket.emit("joinRoom",{name:n,roomCode:c});
+};
+$("start").onclick=()=>socket.emit("startGame");
+$("leave").onclick=()=>socket.disconnect();
+
+socket.on("connect",()=>{myId=socket.id});
+socket.on("joined",d=>{
+ roomCode=d.code; isHost=d.host;
+ $("menu").classList.add("hidden"); $("roomUI").classList.remove("hidden"); $("roomCode").textContent=roomCode;
+});
+socket.on("errorMessage",m=>alert(m));
+socket.on("roomState",state=>{
+ roomData=state; roomCode=state.code; isHost=state.hostId===myId;
+ $("roomCode").textContent=state.code;
+ $("start").classList.toggle("hidden",!isHost||state.started);
+ $("roomInfo").textContent=state.started?"بازی در حال اجراست":"کد را برای دوستانت بفرست";
+ $("timer").textContent=fmt(state.timeLeft);
+ const arr=state.players;
+ $("members").innerHTML=arr.map(p=>`<div class="member ${p.id===state.hostId?'host':''}">${p.name}${p.id===state.hostId?' 👑':''}</div>`).join("");
+ if(started) syncWorld(state);
+});
+socket.on("gameStarted",state=>{
+ started=true; $("roomUI").classList.add("hidden"); $("hud").style.display="block";
+ $("roomText").textContent="اتاق: "+state.code;
+ initGame().then(()=>syncWorld(state));
+});
+socket.on("hitConfirmed",d=>{ if(d.shooterId===myId) muzzle(); });
+socket.on("youDied",d=>{
+ $("dead").style.display="flex";
+ setTimeout(()=>{$("dead").style.display="none"},1500);
+});
+socket.on("gameOver",d=>{
+ started=false; $("hud").style.display="none"; $("mobile").style.display="none";
+ $("winner").style.display="flex";
+ $("winnerText").textContent=d.winner?`🏆 برنده: ${d.winner.name} — ${d.winner.kills} کیل`:"بازی تمام شد";
+ setTimeout(()=>{$("winner").style.display="none"; $("roomUI").classList.remove("hidden")},5000);
+});
+
+function fmt(s){s=Math.max(0,s|0);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}
+
+async function initGame(){
+ if(engine) return;
+ const canvas=$("renderCanvas");
+ engine=new BABYLON.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:true},true);
+ scene=new BABYLON.Scene(engine);
+ scene.clearColor=new BABYLON.Color4(.025,.04,.055,1);
+ const hemi=new BABYLON.HemisphericLight("hemi",new BABYLON.Vector3(0,1,0),scene); hemi.intensity=.75;
+ const sun=new BABYLON.DirectionalLight("sun",new BABYLON.Vector3(-.4,-1,-.3),scene);sun.intensity=.65;
+ camera=new BABYLON.UniversalCamera("fps",new BABYLON.Vector3(0,2,0),scene);
+ camera.minZ=.05;camera.fov=.95;camera.speed=.0;camera.angularSensibility=2600;
+ camera.attachControl(canvas,true);
+ camera.inputs.removeByType("FreeCameraKeyboardMoveInput");
+ gunRoot=new BABYLON.TransformNode("gunRoot",scene);
+ const body=BABYLON.MeshBuilder.CreateBox("gun",{width:.18,height:.18,depth:1.15},scene); body.parent=gunRoot;body.position.z=.65;body.position.y=-.15;
+ const mat=new BABYLON.StandardMaterial("gunMat",scene);mat.diffuseColor=new BABYLON.Color3(.08,.09,.1);body.material=mat;
+ gunRoot.parent=camera;gunRoot.position=new BABYLON.Vector3(.38,-.32,.65);
+
+ buildWorld();
+ window.addEventListener("keydown",e=>keys[e.code]=true);
+ window.addEventListener("keyup",e=>keys[e.code]=false);
+ canvas.addEventListener("mousedown",()=>{canvas.requestPointerLock?.()});
+ canvas.addEventListener("click",()=>fire());
+ canvas.addEventListener("touchstart",e=>{if(e.touches.length===1) lookTouch={x:e.touches[0].clientX,y:e.touches[0].clientY}}, {passive:false});
+ canvas.addEventListener("touchmove",e=>{
+   if(e.touches.length===1&&lookTouch){
+     const t=e.touches[0],dx=t.clientX-lookTouch.x,dy=t.clientY-lookTouch.y;
+     camera.rotation.y+=dx*.006;camera.rotation.x=clamp(camera.rotation.x+dy*.004,-1.35,1.35);
+     lookTouch={x:t.clientX,y:t.clientY};e.preventDefault();
+   }
+ },{passive:false});
+ setupMobile();
+ engine.runRenderLoop(()=>{updateLocal();scene.render()});
+ window.addEventListener("resize",()=>engine.resize());
+}
+
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function mat(name,color){
+ const m=new BABYLON.StandardMaterial(name,scene);m.diffuseColor=BABYLON.Color3.FromHexString(color);return m;
+}
+function box(name,x,y,z,w,h,d,color){
+ const m=BABYLON.MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},scene);m.position.set(x,y,z);m.material=mat(name+"m",color);obstacles.push(m);return m;
+}
+function buildWorld(){
+ const ground=BABYLON.MeshBuilder.CreateGround("ground",{width:WORLD,height:WORLD},scene);ground.material=mat("ground","#66735b");
+ const road=box("road",0,.02,0,35,.05,190,"#30383b");
+ const road2=box("road2",0,.025,0,190,.05,35,"#30383b");
+ for(let x=-80;x<=80;x+=40) for(let z=-80;z<=80;z+=40){
+   if(Math.abs(x)<45&&Math.abs(z)<45) continue;
+   box("house",x,4,z,18,8,15,"#a18d70");
+   box("roof",x,8.5,z,19,1,16,"#624f43");
+   box("door",x,2.1,z-7.6,3.2,4.2,.2,"#3a2a23");
+ }
+ for(let i=0;i<80;i++){
+   const x=(Math.random()*180)-90,z=(Math.random()*180)-90;
+   if(Math.abs(x)<42||Math.abs(z)<42) continue;
+   const trunk=BABYLON.MeshBuilder.CreateCylinder("trunk",{height:5,diameter:.9},scene);trunk.position.set(x,2.5,z);trunk.material=mat("tr","#60452d");obstacles.push(trunk);
+   const crown=BABYLON.MeshBuilder.CreateSphere("crown",{diameter:5,segments:8},scene);crown.position.set(x,6,z);crown.material=mat("leaf","#2d6339");obstacles.push(crown);
+ }
+ const border=mat("border","#202830");
+ box("b1",0,2,-99,198,4,2,"#202830");box("b2",0,2,99,198,4,2,"#202830");
+ box("b3",-99,2,0,2,4,198,"#202830");box("b4",99,2,0,2,4,198,"#202830");
+}
+
+function makePlayer(p){
+ if(players[p.id]) return;
+ const root=new BABYLON.TransformNode(p.id,scene);
+ const body=BABYLON.MeshBuilder.CreateCapsule("playerBody",{height:2.4,radius:.48},scene);body.parent=root;body.position.y=1.2;
+ body.material=mat(p.id+"mat",p.id===myId?"#3498ff":"#e54b4b");
+ const label=makeLabel(p.name);
+ label.parent=root;label.position.y=3.2;
+ players[p.id]=root;
+}
+function makeBot(b){
+ if(bots[b.id]) return;
+ const root=new BABYLON.TransformNode(b.id,scene);
+ const body=BABYLON.MeshBuilder.CreateCapsule("zbody",{height:2.4,radius:.48},scene);body.parent=root;body.position.y=1.2;body.material=mat(b.id+"m","#7bbf5b");
+ for(const side of [-1,1]){
+   const arm=BABYLON.MeshBuilder.CreateBox("arm",{width:.25,height:1.4,depth:.25},scene);arm.parent=root;arm.position.set(side*.68,1.35,.18);arm.rotation.z=side*.18;arm.material=body.material;
+   const leg=BABYLON.MeshBuilder.CreateBox("leg",{width:.3,height:1.1,depth:.35},scene);leg.parent=root;leg.position.set(side*.25,.55,0);leg.material=body.material;
+ }
+ const label=makeLabel(b.name);label.parent=root;label.position.y=3.1;
+ bots[b.id]=root;
+}
+function makeLabel(text){
+ const plane=BABYLON.MeshBuilder.CreatePlane("name",{width:3.2,height:.55},scene);
+ const tex=new BABYLON.DynamicTexture("txt",{width:512,height:90},scene,true);tex.hasAlpha=true;
+ const c=tex.getContext();c.clearRect(0,0,512,90);c.fillStyle="white";c.font="bold 44px Tahoma";c.textAlign="center";c.fillText(text,256,58);tex.update();
+ const m=new BABYLON.StandardMaterial("labelmat",scene);m.diffuseTexture=tex;m.opacityTexture=tex;m.emissiveColor=new BABYLON.Color3(1,1,1);plane.material=m;
+ plane.billboardMode=BABYLON.Mesh.BILLBOARDMODE_ALL;return plane;
+}
+function syncWorld(state){
+ state.players.forEach(p=>{
+   makePlayer(p);
+   if(p.id!==myId) players[p.id].position.set(p.x,p.y-2,p.z),players[p.id].rotation.y=p.rot;
+   else {me=p; if(camera) {camera.position.x=p.x;camera.position.z=p.z;}}
+ });
+ state.bots.forEach(b=>{makeBot(b);bots[b.id].position.set(b.x,b.y-2,b.z);bots[b.id].rotation.y=b.rot;});
+ Object.keys(players).forEach(id=>{if(!state.players.some(p=>p.id===id)){players[id].dispose();delete players[id]}});
+ Object.keys(bots).forEach(id=>{if(!state.bots.some(b=>b.id===id)){bots[id].dispose();delete bots[id]}});
+ if(me){$("hp").style.width=me.hp+"%";$("killText").textContent=`❤️ ${me.hp} | 🔫 کیل: ${me.kills}`;}
+ $("timer").textContent=fmt(state.timeLeft);
+}
+function updateLocal(){
+ if(!started||!camera) return;
+ let f=0,r=0;
+ if(keys.KeyW||keys.ArrowUp)f+=1;if(keys.KeyS||keys.ArrowDown)f-=1;
+ if(keys.KeyD||keys.ArrowRight)r+=1;if(keys.KeyA||keys.ArrowLeft)r-=1;
+ f+=-joy.y;r+=joy.x;
+ const len=Math.hypot(f,r)||1;if(len>1){f/=len;r/=len}
+ const sp=.16;
+ const yaw=camera.rotation.y;
+ camera.position.x+= (Math.sin(yaw)*f+Math.cos(yaw)*r)*sp;
+ camera.position.z+= (Math.cos(yaw)*f-Math.sin(yaw)*r)*sp;
+ camera.position.x=clamp(camera.position.x,-94,94);camera.position.z=clamp(camera.position.z,-94,94);
+ if(Date.now()-lastSend>70){socket.emit("move",{x:camera.position.x,y:2,z:camera.position.z,rot:camera.rotation.y});lastSend=Date.now()}
+}
+function fire(){
+ if(!started||Date.now()-lastFire<180)return;lastFire=Date.now();muzzle();
+ const ray=scene.createPickingRay(scene.getEngine().getRenderWidth()/2,scene.getEngine().getRenderHeight()/2,BABYLON.Matrix.Identity(),camera);
+ const hit=scene.pickWithRay(ray,m=>m.isPickable!==false);
+ let end=ray.origin.add(ray.direction.scale(100));
+ let targetId=null;
+ if(hit&&hit.hit){end=hit.pickedPoint;
+   let node=hit.pickedMesh;
+   while(node&&node.parent&&!(players[node.name]||bots[node.name]))node=node.parent;
+   const id=node?.name;
+   if(id&&id!==myId&&(players[id]||bots[id]))targetId=id;
+ }
+ drawTracer(ray.origin,end);
+ if(targetId)socket.emit("shoot",{targetId});
+}
+function muzzle(){
+ $("flash").style.opacity="1";setTimeout(()=>$("flash").style.opacity="0",45);
+}
+function drawTracer(a,b){
+ const line=BABYLON.MeshBuilder.CreateLines("tracer",{points:[a,b]},scene);line.color=new BABYLON.Color3(1,0.05,.05);line.alpha=.9;
+ setTimeout(()=>line.dispose(),90);
+}
+function setupMobile(){
+ const stick=$("stick"),knob=$("knob");
+ stick.addEventListener("touchmove",e=>{
+   const t=e.touches[0],r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+   let x=t.clientX-cx,y=t.clientY-cy,d=Math.hypot(x,y),max=52;if(d>max){x=x/d*max;y=y/d*max}
+   knob.style.transform=`translate(${x}px,${y}px)`;joy={x:x/max,y:y/max};e.preventDefault();
+ },{passive:false});
+ stick.addEventListener("touchend",()=>{joy={x:0,y:0};knob.style.transform=""});
+ $("fire").addEventListener("touchstart",e=>{fire();e.preventDefault()},{passive:false});
+}
+</script>
+</body>
+</html>
