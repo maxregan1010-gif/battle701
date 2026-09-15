@@ -29,7 +29,42 @@ const socket=io();
 const canvas=document.getElementById('gameCanvas');
 const engine=new BABYLON.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:true,antialias:true});
 const scene=new BABYLON.Scene(engine);scene.collisionsEnabled=true;scene.clearColor=new BABYLON.Color4(.08,.15,.21,1);
-const ui={menu:by('menu'),lobby:by('lobby'),hud:by('hud'),result:by('result'),portrait:by('portrait'),name:by('name'),code:by('code'),joinBox:by('joinBox'),menuHint:by('menuHint'),lobbyHint:by('lobbyHint'),roomCode:by('roomCode'),players:by('players'),start:by('start'),hp:by('hp'),hpfill:by('hpfill'),kills:by('kills'),count:by('count'),timer:by('timer'),toast:by('toast'),winner:by('winner'),rank:by('rank'),mobile:by('mobile'),joy:by('joy'),knob:by('knob'),look:by('look'),fire:by('fire'),run:by('run'),reload:by('reload'),full:by('full')};
+const ui={
+menu:by('menu'),
+lobby:by('lobby'),
+hud:by('hud'),
+result:by('result'),
+portrait:by('portrait'),
+name:by('name'),
+code:by('code'),
+joinBox:by('joinBox'),
+menuHint:by('menuHint'),
+lobbyHint:by('lobbyHint'),
+roomCode:by('roomCode'),
+players:by('players'),
+create:by('create'),
+showJoin:by('showJoin'),
+join:by('join'),
+start:by('start'),
+leave:by('leave'),
+backMenu:by('backMenu'),
+hp:by('hp'),
+hpfill:by('hpfill'),
+kills:by('kills'),
+count:by('count'),
+timer:by('timer'),
+toast:by('toast'),
+winner:by('winner'),
+rank:by('rank'),
+mobile:by('mobile'),
+joy:by('joy'),
+knob:by('knob'),
+look:by('look'),
+fire:by('fire'),
+run:by('run'),
+reload:by('reload'),
+full:by('full')
+};
 function by(id){return document.getElementById(id)}
 let myId=null,room=null,started=false,gameEnd=0,localHP=100,localKills=0,lastState=0,fireAt=0,toastTimer=0;
 let camera,gun,flash,flashLight;
