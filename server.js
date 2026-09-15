@@ -1,1307 +1,367 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const path = require("path");
+const express = require('express');
+const http = require('http');
+const path = require('path');
+const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, { cors: { origin: '*' } });
+
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('/health', (_req, res) => res.json({ ok: true, game: 'Battle 701' }));
+app.use((_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-
-app.use(express.static(path.join(__dirname, "public")));
-
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-/* =========================================================
-   GAME SETTINGS
-========================================================= */
-
-const MAP_LIMIT = 48;
-
-const PLAYER_MAX_HP = 100;
-const PLAYER_DAMAGE = 10;
-
+const GAME_MS = 10 * 60 * 1000;
+const MAX_PLAYERS = 16;
 const BOT_COUNT = 5;
-const BOT_MAX_HP = 20;
+const PLAYER_HP = 100;
+const BOT_HP = 20;
+const DAMAGE = 10;
 const BOT_DAMAGE = 10;
+const BOT_SPEED = 3.2;
+const PLAYER_SPEED = 8.2;
+const PLAYER_RUN_SPEED = 12.5;
 
-const BOT_ATTACK_RANGE = 2.4;
-const BOT_ATTACK_INTERVAL = 2000;
+const WORLD = { minX: -94, maxX: 94, minZ: -94, maxZ: 94 };
 
-const GAME_TIME = 10 * 60 * 1000;
-const PLAYER_RESPAWN_TIME = 2500;
-const BOT_RESPAWN_TIME = 3000;
+// This is the same style/layout as the first Battle/Rolet map:
+// many houses, a cross-shaped road and a forest of trees.
+const HOUSES = [];
+for (let x = -80; x <= 80; x += 40) {
+  for (let z = -80; z <= 80; z += 40) {
+    if (Math.abs(x) < 45 && Math.abs(z) < 45) continue;
+    HOUSES.push({ x, z, w: 18, d: 15 });
+  }
+}
 
-const PLAYER_REGEN_INTERVAL = 10000;
-const PLAYER_REGEN_AMOUNT = 5;
-
-/* =========================================================
-   WORLD COLLISION DATA
-   Client and server use the same basic collision layout.
-========================================================= */
-
-const BOXES = [
-  { x: 0, z: 0, w: 10, d: 2.5 },
-  { x: -18, z: -8, w: 3, d: 15 },
-  { x: 18, z: -8, w: 3, d: 15 },
-
-  { x: -18, z: 12, w: 14, d: 3 },
-  { x: 18, z: 12, w: 14, d: 3 },
-
-  { x: -10, z: -25, w: 18, d: 3 },
-  { x: 12, z: -25, w: 12, d: 3 },
-
-  { x: -28, z: 25, w: 16, d: 3 },
-  { x: 25, z: 25, w: 16, d: 3 },
-
-  { x: -32, z: -2, w: 3, d: 12 },
-  { x: 32, z: 4, w: 3, d: 18 }
-];
-
+// Fixed tree positions so client and server always agree on collision.
 const TREES = [
-  { x: -35, z: -35, r: 1.6 },
-  { x: -25, z: -30, r: 1.5 },
-  { x: -14, z: -38, r: 1.7 },
-  { x: 0, z: -35, r: 1.6 },
-  { x: 15, z: -37, r: 1.7 },
-  { x: 28, z: -32, r: 1.5 },
-  { x: 38, z: -22, r: 1.6 },
+  [-88,-86,1.0],[-64,-88,.9],[-40,-88,1.15],[40,-88,1.0],[64,-86,.9],[88,-88,1.05],
+  [-88,-64,.85],[-70,-60,1.0],[70,-62,.9],[88,-60,1.05],
+  [-90,-25,1.0],[-72,-18,.9],[72,-18,1.0],[90,-25,.9],
+  [-90,25,.95],[-72,18,1.0],[72,18,.9],[90,28,1.05],
+  [-88,60,1.05],[-70,64,.9],[70,62,1.0],[88,64,.9],
+  [-88,88,1.0],[-64,86,.9],[-40,88,1.05],[40,88,1.0],[64,88,.9],[88,86,1.05],
+  [-30,-86,.8],[30,-86,.85],[-30,86,.85],[30,86,.8]
+].map(([x,z,s]) => ({ x, z, r: 2.65 * s }));
 
-  { x: -38, z: -12, r: 1.5 },
-  { x: 38, z: -8, r: 1.5 },
-
-  { x: -38, z: 12, r: 1.7 },
-  { x: 38, z: 15, r: 1.7 },
-
-  { x: -35, z: 35, r: 1.6 },
-  { x: -20, z: 38, r: 1.5 },
-  { x: -5, z: 34, r: 1.7 },
-  { x: 10, z: 38, r: 1.5 },
-  { x: 25, z: 35, r: 1.6 },
-  { x: 38, z: 34, r: 1.5 }
+const SPAWNS = [
+  [-84, -74], [84, -74], [-84, 74], [84, 74],
+  [-58, -78], [58, -78], [-58, 78], [58, 78],
+  [-78, 0], [78, 0], [0, -82], [0, 82],
+  [-38, -72], [38, -72], [-38, 72], [38, 72]
 ];
-
-/* =========================================================
-   ROOMS
-========================================================= */
 
 const rooms = new Map();
+const socketRoom = new Map();
+let botSerial = 0;
 
-function makeRoomCode() {
-  let code;
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function dist2(a, b) { const dx = a.x - b.x, dz = a.z - b.z; return dx * dx + dz * dz; }
+function rand(a, b) { return a + Math.random() * (b - a); }
+function roomOf(socket) { const c = socketRoom.get(socket.id); return c ? rooms.get(c) : null; }
 
+function makeCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c;
   do {
-    code = Math.random()
-      .toString(36)
-      .substring(2, 7)
-      .toUpperCase();
-  } while (rooms.has(code));
-
-  return code;
+    c = '';
+    for (let i = 0; i < 5; i++) c += chars[(Math.random() * chars.length) | 0];
+  } while (rooms.has(c));
+  return c;
 }
 
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function distance(a, b) {
-  const dx = a.x - b.x;
-  const dz = a.z - b.z;
-
-  return Math.sqrt(dx * dx + dz * dz);
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function randomSpawn() {
-  for (let i = 0; i < 100; i++) {
-    const p = {
-      x: Math.random() * 80 - 40,
-      z: Math.random() * 80 - 40
-    };
-
-    if (!isBlocked(p.x, p.z, 0.9)) {
-      return p;
-    }
-  }
-
-  return {
-    x: 0,
-    z: 20
-  };
-}
-
-/* =========================================================
-   COLLISION
-   Based on the obstacle collision concept used in Shooter 701.
-========================================================= */
-
-function circleIntersectsBox(px, pz, radius, box) {
-  const closestX = clamp(px, box.x - box.w / 2, box.x + box.w / 2);
-  const closestZ = clamp(pz, box.z - box.d / 2, box.z + box.d / 2);
-
-  const dx = px - closestX;
-  const dz = pz - closestZ;
-
-  return dx * dx + dz * dz < radius * radius;
-}
-
-function circleIntersectsTree(px, pz, radius, tree) {
-  const dx = px - tree.x;
-  const dz = pz - tree.z;
-
-  const r = radius + tree.r;
-
+function circleHitsHouse(p, r, h) {
+  const cx = clamp(p.x, h.x - h.w / 2, h.x + h.w / 2);
+  const cz = clamp(p.z, h.z - h.d / 2, h.z + h.d / 2);
+  const dx = p.x - cx, dz = p.z - cz;
   return dx * dx + dz * dz < r * r;
 }
-
-function isBlocked(x, z, radius = 0.6) {
-  if (
-    x < -MAP_LIMIT + radius ||
-    x > MAP_LIMIT - radius ||
-    z < -MAP_LIMIT + radius ||
-    z > MAP_LIMIT - radius
-  ) {
-    return true;
+function blocked(p, r = .65) {
+  if (p.x < WORLD.minX + r || p.x > WORLD.maxX - r || p.z < WORLD.minZ + r || p.z > WORLD.maxZ - r) return true;
+  // Roads are open. Houses are solid.
+  for (const h of HOUSES) if (circleHitsHouse(p, r, h)) return true;
+  for (const t of TREES) {
+    const rr = r + t.r;
+    if (dist2(p, t) < rr * rr) return true;
   }
-
-  for (const box of BOXES) {
-    if (circleIntersectsBox(x, z, radius, box)) {
-      return true;
+  return false;
+}
+function segmentAABB(a, b, h, pad = 0) {
+  const minX = h.x - h.w / 2 - pad, maxX = h.x + h.w / 2 + pad;
+  const minZ = h.z - h.d / 2 - pad, maxZ = h.z + h.d / 2 + pad;
+  let t0 = 0, t1 = 1;
+  const dx = b.x - a.x, dz = b.z - a.z;
+  for (const [s, d, mn, mx] of [[a.x, dx, minX, maxX], [a.z, dz, minZ, maxZ]]) {
+    if (Math.abs(d) < 1e-9) { if (s < mn || s > mx) return false; }
+    else {
+      let q0 = (mn - s) / d, q1 = (mx - s) / d;
+      if (q0 > q1) [q0, q1] = [q1, q0];
+      t0 = Math.max(t0, q0); t1 = Math.min(t1, q1);
+      if (t0 > t1) return false;
     }
   }
-
-  for (const tree of TREES) {
-    if (circleIntersectsTree(x, z, radius, tree)) {
-      return true;
-    }
-  }
-
+  return true;
+}
+function segmentCircle(a, b, c, r) {
+  const vx = b.x - a.x, vz = b.z - a.z;
+  const wx = c.x - a.x, wz = c.z - a.z;
+  const vv = vx * vx + vz * vz;
+  const t = vv ? clamp((wx * vx + wz * vz) / vv, 0, 1) : 0;
+  const dx = a.x + vx * t - c.x, dz = a.z + vz * t - c.z;
+  return dx * dx + dz * dz <= r * r;
+}
+function lineBlocked(a, b, pad = .1) {
+  for (const h of HOUSES) if (segmentAABB(a, b, h, pad)) return true;
+  for (const t of TREES) if (segmentCircle(a, b, t, t.r + pad)) return true;
   return false;
 }
 
-/* =========================================================
-   LINE OF SIGHT
-   Used to stop bullets from passing through walls and trees.
-========================================================= */
-
-function segmentIntersectsBox(ax, az, bx, bz, box) {
-  const minX = box.x - box.w / 2;
-  const maxX = box.x + box.w / 2;
-  const minZ = box.z - box.d / 2;
-  const maxZ = box.z + box.d / 2;
-
-  const dx = bx - ax;
-  const dz = bz - az;
-
-  let tmin = 0;
-  let tmax = 1;
-
-  if (Math.abs(dx) < 0.000001) {
-    if (ax < minX || ax > maxX) {
-      return false;
+function freeSpawn() {
+  for (let i = 0; i < 500; i++) {
+    const s = SPAWNS[(Math.random() * SPAWNS.length) | 0];
+    const p = { x: s[0] + rand(-3, 3), z: s[1] + rand(-3, 3) };
+    if (blocked(p, .9)) continue;
+    let near = false;
+    for (const room of rooms.values()) {
+      for (const pl of room.players.values()) if (dist2(p, pl) < 10 * 10) near = true;
     }
-  } else {
-    const tx1 = (minX - ax) / dx;
-    const tx2 = (maxX - ax) / dx;
-
-    const low = Math.min(tx1, tx2);
-    const high = Math.max(tx1, tx2);
-
-    tmin = Math.max(tmin, low);
-    tmax = Math.min(tmax, high);
-
-    if (tmin > tmax) {
-      return false;
-    }
+    if (!near) return p;
   }
-
-  if (Math.abs(dz) < 0.000001) {
-    if (az < minZ || az > maxZ) {
-      return false;
-    }
-  } else {
-    const tz1 = (minZ - az) / dz;
-    const tz2 = (maxZ - az) / dz;
-
-    const low = Math.min(tz1, tz2);
-    const high = Math.max(tz1, tz2);
-
-    tmin = Math.max(tmin, low);
-    tmax = Math.min(tmax, high);
-
-    if (tmin > tmax) {
-      return false;
-    }
-  }
-
-  return true;
+  return { x: 0, z: 0 };
 }
 
-function segmentIntersectsCircle(ax, az, bx, bz, circle) {
-  const dx = bx - ax;
-  const dz = bz - az;
-
-  const lengthSq = dx * dx + dz * dz;
-
-  if (lengthSq < 0.000001) {
-    const cx = ax - circle.x;
-    const cz = az - circle.z;
-
-    return cx * cx + cz * cz <= circle.r * circle.r;
-  }
-
-  let t =
-    ((circle.x - ax) * dx +
-      (circle.z - az) * dz) /
-    lengthSq;
-
-  t = clamp(t, 0, 1);
-
-  const closestX = ax + dx * t;
-  const closestZ = az + dz * t;
-
-  const distX = closestX - circle.x;
-  const distZ = closestZ - circle.z;
-
-  return (
-    distX * distX +
-    distZ * distZ <= circle.r * circle.r
-  );
+function newPlayer(socket, name) {
+  const p = { id: socket.id, name: String(name || 'بازیکن').trim().slice(0, 18) || 'بازیکن', x: 0, z: 0, rot: 0, hp: PLAYER_HP, kills: 0, dead: false, respawnAt: 0, lastShot: 0, lastInput: Date.now(), lastRegen: Date.now() };
+  return p;
 }
-
-function lineBlocked(a, b) {
-  for (const box of BOXES) {
-    if (
-      segmentIntersectsBox(
-        a.x,
-        a.z,
-        b.x,
-        b.z,
-        box
-      )
-    ) {
-      return true;
-    }
-  }
-
-  for (const tree of TREES) {
-    if (
-      segmentIntersectsCircle(
-        a.x,
-        a.z,
-        b.x,
-        b.z,
-        tree
-      )
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+function newBot() {
+  return { id: `bot-${++botSerial}`, name: `زامبی ${botSerial}`, x: 0, z: 0, rot: 0, hp: BOT_HP, dead: false, attackAt: 0, wanderAt: 0, wx: 0, wz: 0, phase: Math.random() * Math.PI * 2 };
 }
-
-/* =========================================================
-   ROOM STATE
-========================================================= */
-
-function publicPlayer(player) {
+function respawnPlayer(p) {
+  const s = freeSpawn();
+  p.x = s.x; p.z = s.z; p.rot = Math.random() * Math.PI * 2; p.hp = PLAYER_HP; p.dead = false; p.respawnAt = 0; p.lastRegen = Date.now();
+}
+function respawnBot(b) {
+  const s = freeSpawn();
+  b.x = s.x; b.z = s.z; b.rot = Math.random() * Math.PI * 2; b.hp = BOT_HP; b.dead = false; b.attackAt = Date.now() + 800; b.wanderAt = Date.now() + rand(700, 1800); b.wx = s.x; b.wz = s.z;
+}
+function makeRoom(socket, name) {
+  const r = { code: makeCode(), hostId: socket.id, started: false, ending: false, startedAt: 0, endsAt: 0, players: new Map(), bots: [] };
+  r.players.set(socket.id, newPlayer(socket, name));
+  r.bots = Array.from({ length: BOT_COUNT }, newBot);
+  r.bots.forEach(respawnBot);
+  rooms.set(r.code, r); socketRoom.set(socket.id, r.code); socket.join(r.code);
+  return r;
+}
+function publicRoom(r) {
   return {
-    id: player.id,
-    name: player.name,
-    x: player.x,
-    y: player.y,
-    z: player.z,
-    rotationY: player.rotationY,
-    hp: player.hp,
-    maxHp: PLAYER_MAX_HP,
-    kills: player.kills,
-    dead: player.dead,
-    host: player.host
+    code: r.code,
+    hostId: r.hostId,
+    started: r.started,
+    timeLeft: r.started ? Math.max(0, Math.ceil((r.endsAt - Date.now()) / 1000)) : 600,
+    players: [...r.players.values()].map(p => ({ id: p.id, name: p.name, x: p.x, z: p.z, rot: p.rot, hp: p.hp, kills: p.kills, dead: p.dead, bot: false })),
+    bots: r.bots.map(b => ({ id: b.id, name: b.name, x: b.x, z: b.z, rot: b.rot, hp: b.hp, dead: b.dead, bot: true, phase: b.phase }))
   };
 }
-
-function publicBot(bot) {
-  return {
-    id: bot.id,
-    x: bot.x,
-    y: 0,
-    z: bot.z,
-    rotationY: bot.rotationY,
-    hp: bot.hp,
-    maxHp: BOT_MAX_HP,
-    dead: bot.dead
-  };
+function broadcast(r) { io.to(r.code).emit('roomState', publicRoom(r)); }
+function chooseHost(r) { const first = r.players.values().next().value; r.hostId = first ? first.id : null; }
+function moveEntity(e, dx, dz, radius) {
+  const nx = { x: e.x + dx, z: e.z };
+  if (!blocked(nx, radius)) e.x = nx.x;
+  const nz = { x: e.x, z: e.z + dz };
+  if (!blocked(nz, radius)) e.z = nz.z;
 }
-
-function broadcastRoom(room) {
-  io.to(room.code).emit("roomState", {
-    code: room.code,
-    hostId: room.hostId,
-    players: [...room.players.values()].map(publicPlayer),
-    bots: room.bots.map(publicBot),
-    gameStarted: room.gameStarted
-  });
+function rayCircle(o, dx, dz, c, r) {
+  const ox = o.x - c.x, oz = o.z - c.z;
+  const b = 2 * (ox * dx + oz * dz), cc = ox * ox + oz * oz - r * r, disc = b * b - 4 * cc;
+  if (disc < 0) return null;
+  const s = Math.sqrt(disc), t1 = (-b - s) / 2, t2 = (-b + s) / 2;
+  if (t1 >= 0) return t1; if (t2 >= 0) return t2; return null;
 }
-
-/* =========================================================
-   BOT CREATION
-========================================================= */
-
-let botCounter = 0;
-
-function createBot() {
-  const p = randomSpawn();
-
-  return {
-    id: "bot_" + (++botCounter),
-    x: p.x,
-    y: 0,
-    z: p.z,
-    rotationY: 0,
-
-    hp: BOT_MAX_HP,
-    dead: false,
-
-    targetId: null,
-    attackTimer: 0,
-
-    speed: 1.2 + Math.random() * 0.5,
-
-    wanderX: Math.random() * 2 - 1,
-    wanderZ: Math.random() * 2 - 1,
-    wanderTimer: 0,
-
-    walkCycle: Math.random() * Math.PI * 2
-  };
-}
-
-function createBots(room) {
-  room.bots = [];
-
-  for (let i = 0; i < BOT_COUNT; i++) {
-    room.bots.push(createBot());
+function rayBox(o, dx, dz, h) {
+  const minX = h.x - h.w / 2, maxX = h.x + h.w / 2, minZ = h.z - h.d / 2, maxZ = h.z + h.d / 2;
+  let tmin = 0, tmax = Infinity;
+  for (const [s, d, mn, mx] of [[o.x, dx, minX, maxX], [o.z, dz, minZ, maxZ]]) {
+    if (Math.abs(d) < 1e-9) { if (s < mn || s > mx) return null; }
+    else { let a = (mn - s) / d, c = (mx - s) / d; if (a > c) [a, c] = [c, a]; tmin = Math.max(tmin, a); tmax = Math.min(tmax, c); if (tmin > tmax) return null; }
   }
+  return tmin >= 0 ? tmin : null;
 }
-
-/* =========================================================
-   BOT TARGET
-========================================================= */
-
-function findNearestPlayer(room, bot) {
-  let nearest = null;
-  let nearestDistance = Infinity;
-
-  for (const player of room.players.values()) {
-    if (player.dead) continue;
-
-    const d = distance(bot, player);
-
-    if (d < nearestDistance && d < 35) {
-      const from = {
-        x: bot.x,
-        z: bot.z
-      };
-
-      const to = {
-        x: player.x,
-        z: player.z
-      };
-
-      if (!lineBlocked(from, to)) {
-        nearest = player;
-        nearestDistance = d;
-      }
-    }
+function shotEnd(r, shooter, dx, dz) {
+  const max = 120, origin = { x: shooter.x, z: shooter.z }, far = { x: origin.x + dx * max, z: origin.z + dz * max };
+  let worldT = max;
+  for (const h of HOUSES) { const t = rayBox(origin, dx, dz, h); if (t !== null) worldT = Math.min(worldT, t); }
+  for (const t of TREES) { const q = rayCircle(origin, dx, dz, t, t.r); if (q !== null) worldT = Math.min(worldT, q); }
+  let nearest = worldT, target = null;
+  for (const p of r.players.values()) {
+    if (p.id === shooter.id || p.dead) continue;
+    const t = rayCircle(origin, dx, dz, { x: p.x, z: p.z }, .72);
+    if (t !== null && t < nearest) { nearest = t; target = p; }
   }
-
-  return nearest;
+  for (const b of r.bots) {
+    if (b.dead) continue;
+    const t = rayCircle(origin, dx, dz, { x: b.x, z: b.z }, .78);
+    if (t !== null && t < nearest) { nearest = t; target = b; }
+  }
+  return { origin, end: { x: origin.x + dx * nearest, z: origin.z + dz * nearest }, target };
 }
-
-/* =========================================================
-   BOT MOVEMENT
-   Same idea as Shooter 701:
-   probe ahead, stop at solid geometry, then try another direction.
-========================================================= */
-
-function tryBotMove(bot, dx, dz, amount) {
-  const len = Math.sqrt(dx * dx + dz * dz);
-
-  if (len < 0.0001) {
-    return false;
-  }
-
-  dx /= len;
-  dz /= len;
-
-  const nextX = bot.x + dx * amount;
-  const nextZ = bot.z + dz * amount;
-
-  if (isBlocked(nextX, nextZ, 0.7)) {
-    return false;
-  }
-
-  bot.x = nextX;
-  bot.z = nextZ;
-
-  bot.rotationY = Math.atan2(dx, dz);
-
-  bot.walkCycle += 0.35;
-
-  return true;
+function killPlayer(r, killer, victim) {
+  victim.hp = 0; victim.dead = true; victim.respawnAt = Date.now() + 1500; killer.kills++;
+  io.to(victim.id).emit('youDied', { killer: killer.name });
+  io.to(r.code).emit('killEvent', { killerId: killer.id, victimId: victim.id, killerName: killer.name, victimName: victim.name, killerKills: killer.kills });
 }
-
-function updateBot(room, bot, dt) {
+function damagePlayer(r, killer, victim) {
+  if (victim.dead) return;
+  victim.hp = Math.max(0, victim.hp - DAMAGE);
+  io.to(r.code).emit('hit', { targetId: victim.id, hp: victim.hp, shooterId: killer.id });
+  if (victim.hp <= 0) killPlayer(r, killer, victim);
+}
+function damageBot(r, killer, bot) {
   if (bot.dead) return;
-
-  const target = findNearestPlayer(room, bot);
-
-  bot.targetId = target ? target.id : null;
-
-  let dx = 0;
-  let dz = 0;
-
-  if (target) {
-    dx = target.x - bot.x;
-    dz = target.z - bot.z;
-
-    const d = Math.sqrt(dx * dx + dz * dz);
-
-    if (d > BOT_ATTACK_RANGE + 0.4) {
-      const moved = tryBotMove(
-        bot,
-        dx,
-        dz,
-        bot.speed * dt
-      );
-
-      if (!moved) {
-        // Sidestep around obstacle.
-        const sideX = -dz;
-        const sideZ = dx;
-
-        if (
-          !tryBotMove(
-            bot,
-            sideX,
-            sideZ,
-            bot.speed * dt
-          )
-        ) {
-          tryBotMove(
-            bot,
-            -sideX,
-            -sideZ,
-            bot.speed * dt
-          );
-        }
-      }
-    }
-
-    bot.attackTimer -= dt * 1000;
-
-    if (
-      d <= BOT_ATTACK_RANGE &&
-      bot.attackTimer <= 0
-    ) {
-      const from = {
-        x: bot.x,
-        z: bot.z
-      };
-
-      const to = {
-        x: target.x,
-        z: target.z
-      };
-
-      if (!lineBlocked(from, to)) {
-        bot.attackTimer = BOT_ATTACK_INTERVAL;
-
-        target.hp = Math.max(
-          0,
-          target.hp - BOT_DAMAGE
-        );
-
-        io.to(room.code).emit("botShot", {
-          botId: bot.id,
-          start: {
-            x: bot.x,
-            y: 1.5,
-            z: bot.z
-          },
-          end: {
-            x: target.x,
-            y: 1.4,
-            z: target.z
-          }
-        });
-
-        if (target.hp <= 0) {
-          killPlayer(room, target, bot.id);
-        }
-      }
-    }
-  } else {
-    // Wander when there is no visible player.
-    bot.wanderTimer -= dt;
-
-    if (bot.wanderTimer <= 0) {
-      const angle = Math.random() * Math.PI * 2;
-
-      bot.wanderX = Math.sin(angle);
-      bot.wanderZ = Math.cos(angle);
-
-      bot.wanderTimer =
-        1500 + Math.random() * 3000;
-    }
-
-    if (
-      !tryBotMove(
-        bot,
-        bot.wanderX,
-        bot.wanderZ,
-        bot.speed * dt * 0.55
-      )
-    ) {
-      bot.wanderTimer = 0;
-    }
+  bot.hp = Math.max(0, bot.hp - DAMAGE);
+  io.to(r.code).emit('botHit', { targetId: bot.id, hp: bot.hp, shooterId: killer.id });
+  if (bot.hp <= 0) {
+    bot.dead = true; killer.kills++;
+    io.to(r.code).emit('botKilled', { botId: bot.id, killerId: killer.id, killerKills: killer.kills });
+    setTimeout(() => { if (rooms.has(r.code) && r.started && !r.ending) respawnBot(bot); }, 900);
   }
 }
 
-/* =========================================================
-   PLAYER KILL / RESPAWN
-========================================================= */
-
-function killPlayer(room, player, killerId) {
-  if (player.dead) return;
-
-  player.dead = true;
-  player.hp = 0;
-
-  if (killerId && room.players.has(killerId)) {
-    const killer = room.players.get(killerId);
-
-    if (!killer.dead) {
-      killer.kills++;
-    }
-  }
-
-  io.to(room.code).emit("playerKilled", {
-    victimId: player.id,
-    killerId
+io.on('connection', socket => {
+  socket.on('createRoom', ({ name } = {}) => {
+    if (roomOf(socket)) return;
+    const r = makeRoom(socket, name);
+    socket.emit('joined', { code: r.code, host: true });
+    broadcast(r);
   });
 
-  setTimeout(() => {
-    if (!room.players.has(player.id)) {
-      return;
-    }
-
-    const spawn = randomSpawn();
-
-    player.x = spawn.x;
-    player.z = spawn.z;
-    player.y = 1.8;
-
-    player.hp = PLAYER_MAX_HP;
-    player.dead = false;
-
-    io.to(room.code).emit("playerRespawn", {
-      id: player.id,
-      x: player.x,
-      y: player.y,
-      z: player.z,
-      hp: player.hp
-    });
-
-    broadcastRoom(room);
-  }, PLAYER_RESPAWN_TIME);
-}
-
-/* =========================================================
-   BOT DEATH / RESPAWN
-========================================================= */
-
-function killBot(room, bot, killerId) {
-  if (bot.dead) return;
-
-  bot.dead = true;
-  bot.hp = 0;
-
-  if (killerId && room.players.has(killerId)) {
-    const killer = room.players.get(killerId);
-
-    if (!killer.dead) {
-      killer.kills++;
-    }
-  }
-
-  io.to(room.code).emit("botKilled", {
-    botId: bot.id,
-    killerId
+  socket.on('joinRoom', ({ name, roomCode } = {}) => {
+    if (roomOf(socket)) return socket.emit('errorMessage', 'ابتدا از اتاق فعلی خارج شو.');
+    const code = String(roomCode || '').trim().toUpperCase();
+    const r = rooms.get(code);
+    if (!r) return socket.emit('errorMessage', 'اتاقی با این کد پیدا نشد.');
+    if (r.started) return socket.emit('errorMessage', 'بازی این اتاق شروع شده است.');
+    if (r.players.size >= MAX_PLAYERS) return socket.emit('errorMessage', 'ظرفیت اتاق پر است.');
+    r.players.set(socket.id, newPlayer(socket, name));
+    socketRoom.set(socket.id, code); socket.join(code);
+    socket.emit('joined', { code, host: r.hostId === socket.id });
+    broadcast(r);
   });
 
-  setTimeout(() => {
-    if (!rooms.has(room.code)) {
-      return;
-    }
-
-    const spawn = randomSpawn();
-
-    bot.x = spawn.x;
-    bot.z = spawn.z;
-    bot.hp = BOT_MAX_HP;
-    bot.dead = false;
-    bot.targetId = null;
-    bot.attackTimer = 0;
-
-    io.to(room.code).emit("botRespawn", publicBot(bot));
-
-    broadcastRoom(room);
-  }, BOT_RESPAWN_TIME);
-}
-
-/* =========================================================
-   PLAYER SHOOTING
-   Server validates obstacle collision and target.
-========================================================= */
-
-function handlePlayerShoot(room, shooter, data) {
-  if (!room.gameStarted) return;
-  if (!shooter || shooter.dead) return;
-
-  if (!data || !data.direction) return;
-
-  const dx = Number(data.direction.x);
-  const dy = Number(data.direction.y || 0);
-  const dz = Number(data.direction.z);
-
-  if (
-    !Number.isFinite(dx) ||
-    !Number.isFinite(dy) ||
-    !Number.isFinite(dz)
-  ) {
-    return;
-  }
-
-  const length =
-    Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-  if (length < 0.0001) return;
-
-  const dir = {
-    x: dx / length,
-    y: dy / length,
-    z: dz / length
-  };
-
-  const start = {
-    x: shooter.x,
-    y: 1.55,
-    z: shooter.z
-  };
-
-  const MAX_DISTANCE = 120;
-
-  let target = null;
-  let targetDistance = MAX_DISTANCE;
-
-  // Check players.
-  for (const player of room.players.values()) {
-    if (player.id === shooter.id) continue;
-    if (player.dead) continue;
-
-    const vx = player.x - start.x;
-    const vy = 1.4 - start.y;
-    const vz = player.z - start.z;
-
-    const along =
-      vx * dir.x +
-      vy * dir.y +
-      vz * dir.z;
-
-    if (along <= 0 || along >= targetDistance) {
-      continue;
-    }
-
-    const closestX = start.x + dir.x * along;
-    const closestY = start.y + dir.y * along;
-    const closestZ = start.z + dir.z * along;
-
-    const offX = player.x - closestX;
-    const offY = 1.4 - closestY;
-    const offZ = player.z - closestZ;
-
-    const radius = 0.8;
-
-    if (
-      offX * offX +
-        offY * offY +
-        offZ * offZ <=
-      radius * radius
-    ) {
-      const end = {
-        x: player.x,
-        z: player.z
-      };
-
-      if (
-        !lineBlocked(
-          {
-            x: start.x,
-            z: start.z
-          },
-          end
-        )
-      ) {
-        target = player;
-        targetDistance = along;
-      }
-    }
-  }
-
-  // Check bots.
-  for (const bot of room.bots) {
-    if (bot.dead) continue;
-
-    const vx = bot.x - start.x;
-    const vy = 1.2 - start.y;
-    const vz = bot.z - start.z;
-
-    const along =
-      vx * dir.x +
-      vy * dir.y +
-      vz * dir.z;
-
-    if (along <= 0 || along >= targetDistance) {
-      continue;
-    }
-
-    const closestX = start.x + dir.x * along;
-    const closestY = start.y + dir.y * along;
-    const closestZ = start.z + dir.z * along;
-
-    const offX = bot.x - closestX;
-    const offY = 1.2 - closestY;
-    const offZ = bot.z - closestZ;
-
-    const radius = 0.8;
-
-    if (
-      offX * offX +
-        offY * offY +
-        offZ * offZ <=
-      radius * radius
-    ) {
-      if (
-        !lineBlocked(
-          {
-            x: start.x,
-            z: start.z
-          },
-          {
-            x: bot.x,
-            z: bot.z
-          }
-        )
-      ) {
-        target = bot;
-        targetDistance = along;
-      }
-    }
-  }
-
-  const end = {
-    x: start.x + dir.x * targetDistance,
-    y: start.y + dir.y * targetDistance,
-    z: start.z + dir.z * targetDistance
-  };
-
-  io.to(room.code).emit("shot", {
-    shooterId: shooter.id,
-    start,
-    end
+  socket.on('startGame', () => {
+    const r = roomOf(socket);
+    if (!r || r.hostId !== socket.id || r.started || r.players.size < 1) return;
+    r.started = true; r.ending = false; r.startedAt = Date.now(); r.endsAt = r.startedAt + GAME_MS;
+    for (const p of r.players.values()) { p.kills = 0; p.dead = false; respawnPlayer(p); }
+    r.bots.forEach(respawnBot);
+    io.to(r.code).emit('gameStarted', publicRoom(r));
+    broadcast(r);
   });
 
-  if (!target) {
-    return;
-  }
-
-  if (target.id && target.id.startsWith("bot_")) {
-    target.hp = Math.max(
-      0,
-      target.hp - PLAYER_DAMAGE
-    );
-
-    io.to(room.code).emit("botHit", {
-      botId: target.id,
-      hp: target.hp,
-      shooterId: shooter.id
-    });
-
-    if (target.hp <= 0) {
-      killBot(room, target, shooter.id);
-    }
-  } else {
-    target.hp = Math.max(
-      0,
-      target.hp - PLAYER_DAMAGE
-    );
-
-    io.to(room.code).emit("playerHit", {
-      playerId: target.id,
-      hp: target.hp,
-      shooterId: shooter.id
-    });
-
-    if (target.hp <= 0) {
-      killPlayer(room, target, shooter.id);
-    }
-  }
-
-  broadcastRoom(room);
-}
-
-/* =========================================================
-   GAME LOOP
-========================================================= */
-
-function startRoomGame(room) {
-  if (room.gameStarted) return;
-
-  room.gameStarted = true;
-  room.startTime = Date.now();
-
-  for (const player of room.players.values()) {
-    const p = randomSpawn();
-
-    player.x = p.x;
-    player.y = 1.8;
-    player.z = p.z;
-
-    player.hp = PLAYER_MAX_HP;
-    player.kills = 0;
-    player.dead = false;
-  }
-
-  createBots(room);
-
-  io.to(room.code).emit("gameStarted", {
-    duration: GAME_TIME
+  socket.on('move', (data = {}) => {
+    const r = roomOf(socket); if (!r || !r.started || r.ending) return;
+    const p = r.players.get(socket.id); if (!p || p.dead) return;
+    const now = Date.now();
+    const dt = Math.min(.12, Math.max(.01, (now - p.lastInput) / 1000)); p.lastInput = now;
+    let x = Number(data.x) || 0, z = Number(data.z) || 0;
+    const len = Math.hypot(x, z); if (len > 1) { x /= len; z /= len; }
+    const speed = (data.sprint ? PLAYER_RUN_SPEED : PLAYER_SPEED) * dt;
+    moveEntity(p, x * speed, z * speed, .7);
+    p.rot = Number.isFinite(Number(data.rot)) ? Number(data.rot) : p.rot;
   });
 
-  broadcastRoom(room);
-
-  room.gameTimer = setTimeout(() => {
-    endRoomGame(room);
-  }, GAME_TIME);
-}
-
-function endRoomGame(room) {
-  if (!room.gameStarted) return;
-
-  room.gameStarted = false;
-
-  if (room.gameTimer) {
-    clearTimeout(room.gameTimer);
-    room.gameTimer = null;
-  }
-
-  let winner = null;
-
-  for (const player of room.players.values()) {
-    if (
-      !winner ||
-      player.kills > winner.kills
-    ) {
-      winner = player;
+  socket.on('shoot', (data = {}) => {
+    const r = roomOf(socket); if (!r || !r.started || r.ending) return;
+    const shooter = r.players.get(socket.id); if (!shooter || shooter.dead) return;
+    const now = Date.now(); if (now - shooter.lastShot < 140) return; shooter.lastShot = now;
+    let dx = Number(data.dx), dz = Number(data.dz);
+    const len = Math.hypot(dx, dz); if (!Number.isFinite(len) || len < .001) return;
+    dx /= len; dz /= len;
+    const result = shotEnd(r, shooter, dx, dz);
+    if (result.target) {
+      if (result.target.bot) damageBot(r, shooter, result.target); else damagePlayer(r, shooter, result.target);
     }
-  }
-
-  io.to(room.code).emit("gameOver", {
-    winner: winner
-      ? {
-          id: winner.id,
-          name: winner.name,
-          kills: winner.kills
-        }
-      : null
+    io.to(r.code).emit('shotFx', { shooterId: shooter.id, origin: { x: result.origin.x, y: 1.55, z: result.origin.z }, end: { x: result.end.x, y: 1.55, z: result.end.z }, hitId: result.target?.id || null });
   });
 
-  broadcastRoom(room);
-}
-
-/* =========================================================
-   SOCKET.IO
-========================================================= */
-
-io.on("connection", socket => {
-  console.log("Connected:", socket.id);
-
-  socket.on("createRoom", data => {
-    const name =
-      String(data?.name || "Player")
-        .trim()
-        .substring(0, 20);
-
-    const code = makeRoomCode();
-
-    const room = {
-      code,
-      hostId: socket.id,
-
-      players: new Map(),
-      bots: [],
-
-      gameStarted: false,
-      startTime: 0,
-      gameTimer: null,
-      loopTimer: null
-    };
-
-    room.players.set(socket.id, {
-      id: socket.id,
-      name,
-
-      x: 0,
-      y: 1.8,
-      z: 20,
-
-      rotationY: Math.PI,
-
-      hp: PLAYER_MAX_HP,
-      kills: 0,
-
-      dead: false,
-      host: true,
-
-      regenTimer: PLAYER_REGEN_INTERVAL
-    });
-
-    rooms.set(code, room);
-
-    socket.join(code);
-    socket.data.roomCode = code;
-
-    socket.emit("roomCreated", {
-      code
-    });
-
-    broadcastRoom(room);
-  });
-
-  socket.on("joinRoom", data => {
-    const name =
-      String(data?.name || "Player")
-        .trim()
-        .substring(0, 20);
-
-    const code =
-      String(data?.code || "")
-        .trim()
-        .toUpperCase();
-
-    const room = rooms.get(code);
-
-    if (!room) {
-      socket.emit("roomError", {
-        message: "اتاق پیدا نشد"
-      });
-
-      return;
-    }
-
-    if (room.gameStarted) {
-      socket.emit("roomError", {
-        message: "بازی این اتاق شروع شده است"
-      });
-
-      return;
-    }
-
-    if (room.players.size >= 16) {
-      socket.emit("roomError", {
-        message: "اتاق پر است"
-      });
-
-      return;
-    }
-
-    room.players.set(socket.id, {
-      id: socket.id,
-      name,
-
-      x: 0,
-      y: 1.8,
-      z: 20,
-
-      rotationY: Math.PI,
-
-      hp: PLAYER_MAX_HP,
-      kills: 0,
-
-      dead: false,
-      host: false,
-
-      regenTimer: PLAYER_REGEN_INTERVAL
-    });
-
-    socket.join(code);
-    socket.data.roomCode = code;
-
-    socket.emit("roomJoined", {
-      code
-    });
-
-    broadcastRoom(room);
-  });
-
-  socket.on("startGame", () => {
-    const code = socket.data.roomCode;
-
-    if (!code) return;
-
-    const room = rooms.get(code);
-
-    if (!room) return;
-
-    if (room.hostId !== socket.id) {
-      return;
-    }
-
-    if (room.players.size < 1) {
-      return;
-    }
-
-    startRoomGame(room);
-  });
-
-  socket.on("playerUpdate", data => {
-    const code = socket.data.roomCode;
-
-    if (!code) return;
-
-    const room = rooms.get(code);
-
-    if (!room || !room.gameStarted) return;
-
-    const player = room.players.get(socket.id);
-
-    if (!player || player.dead) return;
-
-    const x = Number(data?.x);
-    const y = Number(data?.y);
-    const z = Number(data?.z);
-    const rotationY =
-      Number(data?.rotationY);
-
-    if (
-      !Number.isFinite(x) ||
-      !Number.isFinite(y) ||
-      !Number.isFinite(z)
-    ) {
-      return;
-    }
-
-    // Prevent clients from teleporting through obstacles.
-    const oldPosition = {
-      x: player.x,
-      z: player.z
-    };
-
-    const newPosition = {
-      x: clamp(x, -MAP_LIMIT, MAP_LIMIT),
-      z: clamp(z, -MAP_LIMIT, MAP_LIMIT)
-    };
-
-    const movementDistance =
-      distance(oldPosition, newPosition);
-
-    // Normal player movement per update should be small.
-    if (movementDistance > 2.5) {
-      return;
-    }
-
-    if (
-      !isBlocked(
-        newPosition.x,
-        newPosition.z,
-        0.55
-      )
-    ) {
-      player.x = newPosition.x;
-      player.z = newPosition.z;
-    }
-
-    player.y = clamp(y, 0.5, 5);
-
-    if (Number.isFinite(rotationY)) {
-      player.rotationY = rotationY;
-    }
-
-    socket.to(code).emit("playerUpdate", {
-      id: player.id,
-      x: player.x,
-      y: player.y,
-      z: player.z,
-      rotationY: player.rotationY,
-      hp: player.hp,
-      kills: player.kills,
-      dead: player.dead
-    });
-  });
-
-  socket.on("shoot", data => {
-    const code = socket.data.roomCode;
-
-    if (!code) return;
-
-    const room = rooms.get(code);
-
-    if (!room) return;
-
-    const shooter = room.players.get(socket.id);
-
-    if (!shooter) return;
-
-    handlePlayerShoot(
-      room,
-      shooter,
-      data
-    );
-  });
-
-  socket.on("disconnect", () => {
-    console.log("Disconnected:", socket.id);
-
-    const code = socket.data.roomCode;
-
-    if (!code) return;
-
-    const room = rooms.get(code);
-
-    if (!room) return;
-
-    room.players.delete(socket.id);
-
-    if (room.hostId === socket.id) {
-      const remaining = [
-        ...room.players.values()
-      ];
-
-      if (remaining.length > 0) {
-        const randomIndex =
-          Math.floor(
-            Math.random() * remaining.length
-          );
-
-        const newHost =
-          remaining[randomIndex];
-
-        room.hostId = newHost.id;
-
-        for (const player of remaining) {
-          player.host =
-            player.id === newHost.id;
-        }
-
-        io.to(room.code).emit(
-          "hostChanged",
-          {
-            hostId: newHost.id
-          }
-        );
-      }
-    }
-
-    if (room.players.size === 0) {
-      if (room.gameTimer) {
-        clearTimeout(room.gameTimer);
-      }
-
-      rooms.delete(room.code);
-      return;
-    }
-
-    broadcastRoom(room);
+  socket.on('leaveRoom', () => socket.disconnect(true));
+  socket.on('disconnect', () => {
+    const code = socketRoom.get(socket.id), r = code ? rooms.get(code) : null;
+    socketRoom.delete(socket.id);
+    if (!r) return;
+    r.players.delete(socket.id);
+    if (r.hostId === socket.id) chooseHost(r);
+    if (r.players.size === 0) { rooms.delete(code); return; }
+    broadcast(r);
   });
 });
 
-/* =========================================================
-   SERVER GAME LOOP
-========================================================= */
+function botCanSeeTarget(bot, target) {
+  return !lineBlocked({ x: bot.x, z: bot.z }, { x: target.x, z: target.z }, .15);
+}
+function updateBots(r, dt, now) {
+  for (const b of r.bots) {
+    if (b.dead) continue;
+    let target = null, best = Infinity;
+    for (const p of r.players.values()) {
+      if (p.dead) continue;
+      const d = dist2(b, p); if (d < best) { best = d; target = p; }
+    }
+    if (target && best < 42 * 42) {
+      const d = Math.sqrt(best) || 1;
+      const dx = (target.x - b.x) / d, dz = (target.z - b.z) / d;
+      b.rot = Math.atan2(dx, dz);
+      if (d > 2.7) {
+        const before = { x: b.x, z: b.z };
+        moveEntity(b, dx * BOT_SPEED * dt, dz * BOT_SPEED * dt, .75);
+        if (before.x === b.x && before.z === b.z) moveEntity(b, -dz * BOT_SPEED * dt, dx * BOT_SPEED * dt, .75);
+      } else if (now >= b.attackAt && botCanSeeTarget(b, target)) {
+        b.attackAt = now + 2000;
+        target.hp = Math.max(0, target.hp - BOT_DAMAGE);
+        io.to(r.code).emit('botShot', { botId: b.id, origin: { x: b.x, y: 1.55, z: b.z }, end: { x: target.x, y: 1.55, z: target.z }, targetId: target.id });
+        io.to(r.code).emit('hit', { targetId: target.id, hp: target.hp, shooterId: b.id });
+        if (target.hp <= 0) { target.dead = true; target.respawnAt = now + 1500; io.to(target.id).emit('youDied', { killer: b.name }); }
+      }
+    } else {
+      if (now >= b.wanderAt || Math.hypot(b.wx - b.x, b.wz - b.z) < 1.5) {
+        const s = freeSpawn(); b.wx = s.x; b.wz = s.z; b.wanderAt = now + rand(1200, 3200);
+      }
+      const dx = b.wx - b.x, dz = b.wz - b.z, d = Math.hypot(dx, dz) || 1;
+      b.rot = Math.atan2(dx, dz);
+      moveEntity(b, dx / d * BOT_SPEED * .45 * dt, dz / d * BOT_SPEED * .45 * dt, .75);
+    }
+  }
+}
+
+function finish(r) {
+  if (!r.started || r.ending) return;
+  r.ending = true;
+  const standings = [...r.players.values()].map(p => ({ id: p.id, name: p.name, kills: p.kills })).sort((a, b) => b.kills - a.kills);
+  const winner = standings[0] || null;
+  io.to(r.code).emit('gameOver', { winner, standings });
+  setTimeout(() => {
+    if (!rooms.has(r.code)) return;
+    r.started = false; r.ending = false;
+    for (const p of r.players.values()) { p.kills = 0; p.dead = false; p.hp = PLAYER_HP; }
+    r.bots.forEach(respawnBot);
+    broadcast(r);
+  }, 5500);
+}
 
 setInterval(() => {
   const now = Date.now();
-
-  for (const room of rooms.values()) {
-    if (!room.gameStarted) continue;
-
-    const dt = 0.05;
-
-    for (const player of room.players.values()) {
-      if (player.dead) continue;
-
-      if (
-        !player.regenTimer ||
-        player.regenTimer <= 0
-      ) {
-        if (player.hp < PLAYER_MAX_HP) {
-          player.hp = Math.min(
-            PLAYER_MAX_HP,
-            player.hp + PLAYER_REGEN_AMOUNT
-          );
-
-          io.to(player.id).emit(
-            "playerRegen",
-            {
-              hp: player.hp
-            }
-          );
-        }
-
-        player.regenTimer =
-          PLAYER_REGEN_INTERVAL;
-      } else {
-        player.regenTimer -= 50;
-      }
+  for (const r of rooms.values()) {
+    if (!r.started || r.ending) continue;
+    if (now >= r.endsAt) { finish(r); continue; }
+    for (const p of r.players.values()) {
+      if (p.dead && p.respawnAt && now >= p.respawnAt) respawnPlayer(p);
+      if (!p.dead && p.hp < PLAYER_HP && now - p.lastRegen >= 10000) { p.hp = Math.min(PLAYER_HP, p.hp + 5); p.lastRegen = now; }
     }
-
-    for (const bot of room.bots) {
-      updateBot(room, bot, dt);
-    }
-
-    // Send synchronized bot/player state.
-    io.to(room.code).emit(
-      "worldUpdate",
-      {
-        players: [...room.players.values()]
-          .map(publicPlayer),
-
-        bots: room.bots.map(publicBot),
-
-        remaining:
-          Math.max(
-            0,
-            GAME_TIME -
-              (now - room.startTime)
-          )
-      }
-    );
+    updateBots(r, .05, now);
+    broadcast(r);
   }
 }, 50);
 
-/* =========================================================
-   START SERVER
-========================================================= */
-
-server.listen(PORT, () => {
-  console.log(
-    `Rolet server running on port ${PORT}`
-  );
-}); 
+server.listen(PORT, () => console.log(`Battle 701 server listening on ${PORT}`));
