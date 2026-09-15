@@ -1,16 +1,11 @@
 {
-  "name": "rolet-battle-royale",
+  "name": "battle701",
   "version": "1.0.0",
-  "description": "Simple realtime Babylon.js battle royale for Render",
+  "private": true,
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
+  "scripts": { "start": "node server.js" },
   "dependencies": {
     "express": "^4.21.2",
     "socket.io": "^4.8.1"
-  },
-  "engines": {
-    "node": ">=18"
   }
 }
